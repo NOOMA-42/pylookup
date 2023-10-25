@@ -1,7 +1,12 @@
 # pylookup
 
 Implement lookup argument
-CQ: https://eprint.iacr.org/2022/1763.pdf
+[WIP] plookup
+[WIP] Caulk+
+[WIP] baloo
+[WIP] CQ: https://eprint.iacr.org/2022/1763.pdf
+[WIP] lasso
+[WIP] LogUp+GKR
 
 ## Test
 
