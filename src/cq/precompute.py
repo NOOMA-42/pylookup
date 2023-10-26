@@ -1,4 +1,4 @@
-import common_util.kzg as kzg
+import common_util.polycommit.kzg as kzg
 import os
 cwd = os.getcwd()
 
