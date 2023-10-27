@@ -1,8 +1,8 @@
 import blst
 from fft import fft
-from poly import 
 import py_ecc.bn128 as b
 from common_util.poly import Polynomial, Basis
+from common_util.kzg import Setup
 from common_util.curve import Scalar
 import kzg_proofs
 from kzg_proofs import (
@@ -84,13 +84,32 @@ def toeplitz_part3(hext_fft):
     # Only the top half is the Toeplitz product, the rest is padding
     return fft(hext_fft, MODULUS, root_of_unity, inv=True)[:len(hext_fft) // 2]
 
-
+# FIXME delete after implementation
 def fk20_single(polynomial, setup):
     """
     Compute all n (single) proofs according to FK20 method
     """
 
     assert is_power_of_two(len(polynomial))
+    n = len(polynomial)
+    
+    x = setup[0][n - 2::-1] + [P1_INF.dup()]
+    xext_fft = toeplitz_part1(x)
+    
+    toeplitz_coefficients = polynomial[-1::] + [0] * (n + 1) + polynomial[1:-1]
+
+    # Compute the vector h from the paper using a Toeplitz matric multiplication
+    h = toeplitz_part3(toeplitz_part2(toeplitz_coefficients, xext_fft))
+
+    # The proofs are the DFT of the h vector
+    return fft(h, MODULUS, get_root_of_unity(n))
+
+def test_fk20_single(polynomial: Polynomial, setup: Setup):
+    """
+    Compute all n (single) proofs according to FK20 method
+    """
+
+    assert is_power_of_two(len(polynomial)) # check for fft, fft speed up only works for power of 2
     n = len(polynomial)
     
     x = setup[0][n - 2::-1] + [P1_INF.dup()]
@@ -134,7 +153,7 @@ def fk20_single_data_availability_optimized(polynomial: list[int], setup: tuple[
     # The proofs are the DFT of the h vector
     return fft(h, MODULUS, get_root_of_unity(2 * n))
 
-
+# FIXME delete after implementation
 def data_availabilty_using_fk20(polynomial: list[int], setup: tuple[list[blst.P1], list[blst.P2]]) -> list[blst.P1]:
     """
     Computes all the KZG proofs for data availability checks. This involves sampling on the double domain
@@ -169,13 +188,6 @@ if __name__ == "__main__":
     setup = generate_setup(random.getrandbits(256), n)
 
     commitment = commit_to_poly(polynomial, setup)
-
-
-    #####
-    test_polynomial = Polynomial([Scalar(random.randint(1, MAX_DEGREE_POLY)) for _ in range(n)], Basis.LAGRANGE)
-    
-
-
 
     # Computing the proofs on the double 
     all_proofs = data_availabilty_using_fk20(polynomial, setup)
