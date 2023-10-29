@@ -1,12 +1,12 @@
 # pylookup
 
 Implement lookup argument
-[WIP] plookup
-[WIP] Caulk+
-[WIP] baloo
-[WIP] CQ: https://eprint.iacr.org/2022/1763.pdf
-[WIP] lasso
-[WIP] LogUp+GKR
+1. [WIP] plookup
+2. [WIP] Caulk+
+3. [WIP] baloo
+4. [WIP] CQ: https://eprint.iacr.org/2022/1763.pdf
+5. [WIP] lasso
+6. [WIP] LogUp+GKR
 
 ## Test
 
