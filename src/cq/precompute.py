@@ -8,7 +8,7 @@ cwd = os.getcwd()
 
 def gen(N, t):
     # compute SRS
-    setup = Setup.from_file(cwd + "/src/cq/test/powersOfTau28_hez_final_11.ptau")
+    setup = Setup.from_file(cwd + "/src/common_util/setup_file/powersOfTau28_hez_final_11.ptau")
     # TODO: consider commit_G2 with a monomial basis, current implementation only supports Lagrange basis. That implementation need to handle condition such as X^n - 1 tho.
     z_v = b.add(setup.powers_of_x2[setup.n - 1], setup.powers_of_x2[0])
     t = Polynomial(

@@ -1,10 +1,10 @@
-import blst
-from fft import fft
+# import blst
+from fft import test_fft
 import py_ecc.bn128 as b
-from common_util.poly import Polynomial, Basis
+from common_util.poly import Polynomial, Basis, is_power_of_two
 from common_util.kzg import Setup
 from common_util.curve import Scalar
-import kzg_proofs
+""" import kzg_proofs
 from kzg_proofs import (
     MODULUS,
     check_proof_single,
@@ -13,10 +13,9 @@ from kzg_proofs import (
     list_to_reverse_bit_order,
     get_root_of_unity,
     reverse_bit_order,
-    is_power_of_two,
     eval_poly_at,
     P1_INF 
-)
+) """
 
 # FK20 Method to compute all proofs
 # Toeplitz multiplication via http://www.netlib.org/utk/people/JackDongarra/etemplates/node384.html
@@ -45,12 +44,13 @@ from kzg_proofs import (
 # xext is the extended x vector (padded with zero), and xext_fft is its Fourier transform.
 
 
+# FIXME delete after implementation
 # Toeplitz matrix multiplication part 1 -- precompute (independent of polynomial)
-def toeplitz_part1(x):
-    """
-    Performs the first part of the Toeplitz matrix multiplication algorithm, which is a Fourier
-    transform of the vector x extended
-    """
+""" def toeplitz_part1(x):
+    
+    #Performs the first part of the Toeplitz matrix multiplication algorithm, which is a Fourier
+    #transform of the vector x extended
+
     assert is_power_of_two(len(x))
     
     root_of_unity = get_root_of_unity(len(x) * 2)
@@ -60,12 +60,30 @@ def toeplitz_part1(x):
 
     xext_fft = fft(xext, MODULUS, root_of_unity, inv=False)
     
+    return xext_fft """
+
+def test_toeplitz_part1(setup: Setup):
+    """
+    Toeplitz matrix multiplication part 1 -- precompute (independent of polynomial)
+    Setup need to extend twice the size, because Toeplitz matrix embbed in circulent matrix
+    """
+    assert is_power_of_two(setup.length)
+    
+    roots_of_unity = Scalar.roots_of_unity(setup.length * 2)
+    #root_of_unity = get_root_of_unity(len(x) * 2)
+    # print("roots_of_unity: ", roots_of_unity)
+    # Extend x with zeros (neutral element of G1). 
+    xext = setup.powers_of_x + [b.Z1 for _ in range(setup.length)]
+    #print("xext", xext)
+
+    xext_fft = test_fft(xext, Scalar.field_modulus, roots_of_unity, inv=False)
+    
     return xext_fft
 
-def toeplitz_part2(toeplitz_coefficients, xext_fft):
-    """
-    Performs the second part of the Toeplitz matrix multiplication algorithm
-    """
+""" def toeplitz_part2(toeplitz_coefficients, xext_fft):
+    
+    # Performs the second part of the Toeplitz matrix multiplication algorithm
+    
     # Extend the toeplitz coefficients to get a circulant matrix into which the Toeplitz
     # matrix is embedded
     assert is_power_of_two(len(toeplitz_coefficients))
@@ -86,9 +104,9 @@ def toeplitz_part3(hext_fft):
 
 # FIXME delete after implementation
 def fk20_single(polynomial, setup):
-    """
-    Compute all n (single) proofs according to FK20 method
-    """
+    
+    #Compute all n (single) proofs according to FK20 method
+    
 
     assert is_power_of_two(len(polynomial))
     n = len(polynomial)
@@ -105,12 +123,12 @@ def fk20_single(polynomial, setup):
     return fft(h, MODULUS, get_root_of_unity(n))
 
 def test_fk20_single(polynomial: Polynomial, setup: Setup):
-    """
-    Compute all n (single) proofs according to FK20 method
-    """
+    
+    #Compute all n (single) proofs according to FK20 method
+    
 
-    assert is_power_of_two(len(polynomial)) # check for fft, fft speed up only works for power of 2
-    n = len(polynomial)
+    assert is_power_of_two(len(polynomial.values)) # check for fft, fft speed up only works for power of 2
+    n = len(polynomial.values)
     
     x = setup[0][n - 2::-1] + [P1_INF.dup()]
     xext_fft = toeplitz_part1(x)
@@ -126,11 +144,11 @@ def test_fk20_single(polynomial: Polynomial, setup: Setup):
 
 # Compute all n (single) proofs according to FK20 method
 def fk20_single_data_availability_optimized(polynomial: list[int], setup: tuple[list[blst.P1], list[blst.P2]]) -> list[blst.P1]:
-    """
-    Special version of the FK20 for the situation of data availability checks:
-    The upper half of the polynomial coefficients is always 0, so we do not need to extend to twice the size
-    for Toeplitz matrix multiplication
-    """
+    
+    #Special version of the FK20 for the situation of data availability checks:
+    #The upper half of the polynomial coefficients is always 0, so we do not need to extend to twice the size
+    #for Toeplitz matrix multiplication
+    
     assert is_power_of_two(len(polynomial))
     
     n = len(polynomial) // 2
@@ -155,10 +173,10 @@ def fk20_single_data_availability_optimized(polynomial: list[int], setup: tuple[
 
 # FIXME delete after implementation
 def data_availabilty_using_fk20(polynomial: list[int], setup: tuple[list[blst.P1], list[blst.P2]]) -> list[blst.P1]:
-    """
-    Computes all the KZG proofs for data availability checks. This involves sampling on the double domain
-    and reordering according to reverse bit order
-    """
+    
+    #Computes all the KZG proofs for data availability checks. This involves sampling on the double domain
+    #and reordering according to reverse bit order
+    
     assert is_power_of_two(len(polynomial))
     n = len(polynomial)
     extended_polynomial = polynomial + [0] * n
@@ -167,7 +185,7 @@ def data_availabilty_using_fk20(polynomial: list[int], setup: tuple[list[blst.P1
 
     return list_to_reverse_bit_order(all_proofs)
 
-
+ """
 if __name__ == "__main__":
     #uncomment to report time for the functions
     #from timer import chrono

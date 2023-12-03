@@ -1,7 +1,7 @@
 import py_ecc.bn128 as b
 from common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
-from dataclasses import dataclass
 from common_util.poly import Polynomial, Basis
+from dataclasses import dataclass
 
 # Recover the trusted setup from a file in the format used in
 # https://github.com/iden3/snarkjs#7-prepare-phase-2
@@ -17,7 +17,7 @@ class Setup(object):
     #   ([1]₁, [x]₁, ..., [x^{d-1}]₁)
     # = ( H,    xH,  ...,  x^{d-1}H ), where H is a generator of G_2
     powers_of_x2: list[G2Point]
-    n: int
+    length: int
 
     @classmethod
     def from_file(cls, filename):
@@ -38,7 +38,7 @@ class Setup(object):
         factor = b.FQ(values[0]) / b.G1[0]
         values = [b.FQ(x) / factor for x in values]
         powers_of_x = [(values[i * 2], values[i * 2 + 1]) for i in range(powers)]
-        print("Extracted G1 side, X^1 point: {}".format(powers_of_x[1]))
+        #print("Extracted G1 side, X^1 point: {}".format(powers_of_x[1]))
         # Search for start of G2 points. We again know that the first point is
         # the generator.
         pos = SETUP_FILE_G1_STARTPOS + 32 * powers * 2
@@ -61,12 +61,12 @@ class Setup(object):
         powers_of_x2 = [
             (b.FQ2(X2_values[i * 2 : i * 2 + 2]), b.FQ2(X2_values[i * 2 + 2 : i * 2 + 4])) for i in range(0, powers * 2, 2)
         ]
-        n = len(powers_of_x)
-        print("Extracted G2 side, X^1 point: {}".format(powers_of_x2[1]))
+        length = len(powers_of_x)
+        #print("Extracted G2 side, X^1 point: {}".format(powers_of_x2[1]))
         assert b.pairing(b.G2, powers_of_x[1]) == b.pairing(powers_of_x2[1], b.G1)
         # assert b.pairing(b.G2, powers_of_x[2]) == b.pairing(X2_all[2], b.G1)
         # print("X^1 points checked consistent")
-        return cls(powers_of_x, powers_of_x2, n)
+        return cls(powers_of_x, powers_of_x2, length)
 
     # Encodes the KZG commitment that evaluates to the given values in the group
     def commit_G1(self, values: Polynomial) -> G1Point:
@@ -86,7 +86,7 @@ class Setup(object):
         if len(coeffs) > len(self.powers_of_x2):
             raise Exception("Not enough powers in setup")
         return ec_lincomb([(s, x) for s, x in zip(self.powers_of_x2, coeffs)], twist=True)
-    
+
 if __name__ == "__main__":
     setup = Setup.from_file("powersOfTau28_hez_final_11.ptau")
     dummy_values = Polynomial(

@@ -1,9 +1,13 @@
 import unittest
+import sys
 
 if __name__ == "__main__":
-    # ellipticcurve
+    sys.path.append('/Users/paulyu/opensource_project/pylookup/src/')    
+
+    # util
     loader = unittest.TestLoader()
-    # util_suite = loader.discover(start_dir='./common_util/algebra', pattern='*_test.py')
-    src_suite = loader.discover(start_dir='./src', pattern='*_test.py')
-    runner = unittest.TextTestRunner(verbosity=2)
-    runner.run(src_suite)
+    util_suite = loader.discover(start_dir='./src/common_util', pattern='*_test.py')
+    runner = unittest.TextTestRunner(verbosity=3)
+    runner.run(util_suite)
+
+    # protocol    

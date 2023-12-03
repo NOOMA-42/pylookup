@@ -6,9 +6,10 @@ authors = ["nooma <suncloud2203357667@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.11"
 py-ecc = "^6.0.0"
 tqdm = "^4.66.1"
+keum = {git = "https://github.com/dannywillems/py-keum.git"}
 
 
 [build-system]

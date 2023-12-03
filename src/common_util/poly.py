@@ -1,11 +1,27 @@
 from common_util.curve import Scalar
 from enum import Enum
 
+# Fast Fourier transform, used to convert between polynomial coefficients
+# and a list of evaluations at the roots of unity
+# See https://vitalik.ca/general/2019/05/12/fft.html
+def _fft(vals, modulus, roots_of_unity):
+    if len(vals) == 1:
+        return vals
+    L = _fft(vals[::2], modulus, roots_of_unity[::2])
+    R = _fft(vals[1::2], modulus, roots_of_unity[::2])
+    o = [0] * len(vals)
+    for i, (x, y) in enumerate(zip(L, R)):
+        y_times_root = y * roots_of_unity[i]
+        o[i] = (x + y_times_root) % modulus
+        o[i + len(L)] = (x - y_times_root) % modulus
+    return o
+
+def is_power_of_two(x: int) -> bool:
+    return x > 0 and x & (x-1) == 0
 
 class Basis(Enum):
     LAGRANGE = 1
     MONOMIAL = 2
-
 
 class Polynomial:
     values: list[Scalar]
@@ -111,27 +127,12 @@ class Polynomial:
     # Convenience method to do FFTs specifically over the subgroup over which
     # all of the proofs are operating
     def fft(self, inv=False):
-        # Fast Fourier transform, used to convert between polynomial coefficients
-        # and a list of evaluations at the roots of unity
-        # See https://vitalik.ca/general/2019/05/12/fft.html
-        def _fft(vals, modulus, roots_of_unity):
-            if len(vals) == 1:
-                return vals
-            L = _fft(vals[::2], modulus, roots_of_unity[::2])
-            R = _fft(vals[1::2], modulus, roots_of_unity[::2])
-            o = [0] * len(vals)
-            for i, (x, y) in enumerate(zip(L, R)):
-                y_times_root = y * roots_of_unity[i]
-                o[i] = (x + y_times_root) % modulus
-                o[i + len(L)] = (x - y_times_root) % modulus
-            return o
-
         roots = [x.n for x in Scalar.roots_of_unity(len(self.values))]
         o, nvals = Scalar.field_modulus, [x.n for x in self.values]
         if inv:
             assert self.basis == Basis.LAGRANGE
             # Inverse FFT
-            invlen = Scalar(1) / len(self.values)
+            invlen = Scalar(1) / len(self.values) # Recall Fermat's Little Theorem, you may also use pow(len(vals), modulus-2, modulus).
             reversed_roots = [roots[0]] + roots[1:][::-1]
             return Polynomial(
                 [Scalar(x) * invlen for x in _fft(nvals, o, reversed_roots)],
