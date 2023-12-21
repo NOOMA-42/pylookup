@@ -10,6 +10,7 @@ python = "^3.11"
 py-ecc = "^6.0.0"
 tqdm = "^4.66.1"
 keum = {git = "https://github.com/dannywillems/py-keum.git"}
+numpy = "^1.26.2"
 
 
 [build-system]

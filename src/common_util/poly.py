@@ -1,27 +1,11 @@
-from common_util.curve import Scalar
 from enum import Enum
-
-# Fast Fourier transform, used to convert between polynomial coefficients
-# and a list of evaluations at the roots of unity
-# See https://vitalik.ca/general/2019/05/12/fft.html
-def _fft(vals, modulus, roots_of_unity):
-    if len(vals) == 1:
-        return vals
-    L = _fft(vals[::2], modulus, roots_of_unity[::2])
-    R = _fft(vals[1::2], modulus, roots_of_unity[::2])
-    o = [0] * len(vals)
-    for i, (x, y) in enumerate(zip(L, R)):
-        y_times_root = y * roots_of_unity[i]
-        o[i] = (x + y_times_root) % modulus
-        o[i + len(L)] = (x - y_times_root) % modulus
-    return o
-
-def is_power_of_two(x: int) -> bool:
-    return x > 0 and x & (x-1) == 0
+from numpy.polynomial import polynomial as P
+from src.common_util.curve import Scalar
 
 class Basis(Enum):
     LAGRANGE = 1
     MONOMIAL = 2
+
 
 class Polynomial:
     values: list[Scalar]
@@ -38,82 +22,133 @@ class Polynomial:
 
     def __add__(self, other):
         if isinstance(other, Polynomial):
-            assert len(self.values) == len(other.values)
             assert self.basis == other.basis
+            if (self.basis == Basis.LAGRANGE):
+                assert len(self.values) == len(other.values)
+                return Polynomial(
+                    [x + y for x, y in zip(self.values, other.values)],
+                    self.basis,
+                )
 
-            return Polynomial(
-                [x + y for x, y in zip(self.values, other.values)],
-                self.basis,
-            )
+            if (self.basis == Basis.MONOMIAL):
+                res = P.polyadd(self.values, other.values)
+                return Polynomial(
+                    res,
+                    self.basis,
+                )
         else:
             assert isinstance(other, Scalar)
-            if self.basis == Basis.LAGRANGE:
+            if (self.basis == Basis.LAGRANGE):
                 return Polynomial(
                     [x + other for x in self.values],
                     self.basis,
                 )
-            else:
+
+            if (self.basis == Basis.MONOMIAL):
+                res = P.polyadd(self.values, [other])
                 return Polynomial(
-                    [self.values[0] + other] + self.values[1:],
-                    self.basis
+                    res,
+                    self.basis,
                 )
+
 
     def __sub__(self, other):
         if isinstance(other, Polynomial):
-            assert len(self.values) == len(other.values)
             assert self.basis == other.basis
+            if (self.basis == Basis.LAGRANGE):
+                assert len(self.values) == len(other.values)
+                return Polynomial(
+                    [x - y for x, y in zip(self.values, other.values)],
+                    self.basis,
+                )
 
-            return Polynomial(
-                [x - y for x, y in zip(self.values, other.values)],
-                self.basis,
-            )
+            if (self.basis == Basis.MONOMIAL):
+                res = P.polysub(self.values, other.values)
+                return Polynomial(
+                    res,
+                    self.basis,
+                )
         else:
             assert isinstance(other, Scalar)
-            if self.basis == Basis.LAGRANGE:
+            if (self.basis == Basis.LAGRANGE):
                 return Polynomial(
                     [x - other for x in self.values],
                     self.basis,
                 )
-            else:
-                return Polynomial(
-                    [self.values[0] - other] + self.values[1:],
-                    self.basis
-                )
 
+            if (self.basis == Basis.MONOMIAL):
+                res = P.polysub(self.values, [other])
+                return Polynomial(
+                    res,
+                    self.basis,
+                )
 
     def __mul__(self, other):
         if isinstance(other, Polynomial):
-            assert self.basis == Basis.LAGRANGE
             assert self.basis == other.basis
-            assert len(self.values) == len(other.values)
+            if (self.basis == Basis.LAGRANGE):
+                assert len(self.values) == len(other.values)
+                res = [x * y for x, y in zip(self.values, other.values)]
+            if (self.basis == Basis.MONOMIAL):
+                c1 = self.values
+                c2 = other.values
+                res = P.polymul(c1,c2)
 
             return Polynomial(
-                [x * y for x, y in zip(self.values, other.values)],
+                res,
                 self.basis,
             )
         else:
             assert isinstance(other, Scalar)
-            return Polynomial(
-                [x * other for x in self.values],
-                self.basis,
-            )
+            if (self.basis == Basis.LAGRANGE):
+                return Polynomial(
+                    [x * other for x in self.values],
+                    self.basis,
+                )
+
+            if (self.basis == Basis.MONOMIAL):
+                c1 = self.values
+                c2 = [other]
+                res = P.polymul(c1,c2)
+                return Polynomial(
+                    res,
+                    self.basis,
+                )
 
     def __truediv__(self, other):
         if isinstance(other, Polynomial):
-            assert self.basis == Basis.LAGRANGE
             assert self.basis == other.basis
-            assert len(self.values) == len(other.values)
+            if (self.basis == Basis.LAGRANGE):
+                assert len(self.values) == len(other.values)
+                return Polynomial(
+                    [x / y for x, y in zip(self.values, other.values)],
+                    self.basis,
+                )
+            if (self.basis == Basis.MONOMIAL):
+                qx, rx = P.polydiv(self.values, other.values)
+                # here we only consider the scenario of remainder is 0
+                assert rx == [0]
 
-            return Polynomial(
-                [x / y for x, y in zip(self.values, other.values)],
-                self.basis,
-            )
+                return Polynomial(
+                    qx,
+                    self.basis,
+                )
         else:
             assert isinstance(other, Scalar)
-            return Polynomial(
-                [x / other for x in self.values],
-                self.basis,
-            )
+            if (self.basis == Basis.LAGRANGE):
+                return Polynomial(
+                    [x / other for x in self.values],
+                    self.basis,
+                )
+
+            if (self.basis == Basis.MONOMIAL):
+                c1 = self.values
+                c2 = [other]
+                res = P.polydiv(c1,c2)
+                return Polynomial(
+                    res,
+                    self.basis,
+                )
 
     def shift(self, shift: int):
         assert self.basis == Basis.LAGRANGE
@@ -127,12 +162,27 @@ class Polynomial:
     # Convenience method to do FFTs specifically over the subgroup over which
     # all of the proofs are operating
     def fft(self, inv=False):
+        # Fast Fourier transform, used to convert between polynomial coefficients
+        # and a list of evaluations at the roots of unity
+        # See https://vitalik.ca/general/2019/05/12/fft.html
+        def _fft(vals, modulus, roots_of_unity):
+            if len(vals) == 1:
+                return vals
+            L = _fft(vals[::2], modulus, roots_of_unity[::2])
+            R = _fft(vals[1::2], modulus, roots_of_unity[::2])
+            o = [0] * len(vals)
+            for i, (x, y) in enumerate(zip(L, R)):
+                y_times_root = y * roots_of_unity[i]
+                o[i] = (x + y_times_root) % modulus
+                o[i + len(L)] = (x - y_times_root) % modulus
+            return o
+
         roots = [x.n for x in Scalar.roots_of_unity(len(self.values))]
         o, nvals = Scalar.field_modulus, [x.n for x in self.values]
         if inv:
             assert self.basis == Basis.LAGRANGE
             # Inverse FFT
-            invlen = Scalar(1) / len(self.values) # Recall Fermat's Little Theorem, you may also use pow(len(vals), modulus-2, modulus).
+            invlen = Scalar(1) / len(self.values)
             reversed_roots = [roots[0]] + roots[1:][::-1]
             return Polynomial(
                 [Scalar(x) * invlen for x in _fft(nvals, o, reversed_roots)],
@@ -148,37 +198,9 @@ class Polynomial:
     def ifft(self):
         return self.fft(True)
 
-    # Converts a list of evaluations at [1, w, w**2... w**(n-1)] to
-    # a list of evaluations at
-    # [offset, offset * q, offset * q**2 ... offset * q**(4n-1)] where q = w**(1/4)
-    # This lets us work with higher-degree polynomials, and the offset lets us
-    # avoid the 0/0 problem when computing a division (as long as the offset is
-    # chosen randomly)
-    def to_coset_extended_lagrange(self, offset):
-        assert self.basis == Basis.LAGRANGE
-        group_order = len(self.values)
-        x_powers = self.ifft().values
-        x_powers = [(offset**i * x) for i, x in enumerate(x_powers)] + [Scalar(0)] * (
-            group_order * 3
-        )
-        return Polynomial(x_powers, Basis.MONOMIAL).fft()
-
-    # Convert from offset form into coefficients
-    # Note that we can't make a full inverse function of to_coset_extended_lagrange
-    # because the output of this might be a deg >= n polynomial, which cannot
-    # be expressed via evaluations at n roots of unity
-    def coset_extended_lagrange_to_coeffs(self, offset):
-        assert self.basis == Basis.LAGRANGE
-
-        shifted_coeffs = self.ifft().values
-        inv_offset = 1 / offset
-        return Polynomial(
-            [v * inv_offset**i for (i, v) in enumerate(shifted_coeffs)],
-            Basis.MONOMIAL,
-        )
-
     # Given a polynomial expressed as a list of evaluations at roots of unity,
     # evaluate it at x directly, without using an FFT to covert to coeffs first
+    # https://hackmd.io/@vbuterin/barycentric_evaluation
     def barycentric_eval(self, x: Scalar):
         assert self.basis == Basis.LAGRANGE
 
@@ -194,3 +216,13 @@ class Polynomial:
                 ]
             )
         )
+
+    # Evaluate at x directly for polynomial of MONOMIAL
+    # This is inefficient, just for study usage
+    def coeff_eval(self, x: Scalar):
+        assert self.basis == Basis.MONOMIAL
+        coeffs = self.values
+        result = coeffs[0]
+        for i in range(1, len(coeffs)):
+            result = result + coeffs[i] * x**i
+        return result
