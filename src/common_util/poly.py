@@ -223,6 +223,8 @@ class Polynomial:
         assert self.basis == Basis.MONOMIAL
         coeffs = self.values
         result = coeffs[0]
+        x_pow = Scalar(1)
         for i in range(1, len(coeffs)):
-            result = result + coeffs[i] * x**i
+            x_pow = x_pow * x
+            result = result + coeffs[i] * x_pow
         return result
