@@ -30,6 +30,7 @@ def fk(coeffs, powers_of_x):
     padded_x = inv_powers_of_x + ec_neutral_vals
 
     # We have circulant matrix C, C = F_inv * diag(F * first_col) * F
+    # F: DFT matrix, F_inv: inverse DFT matrix
     # We want to get Q_T_comm_poly_coeffs = C * x = F_inv * diag(F * first_col) * F * x
     # 1. right hand side: F * x
     rhs = ec_fft(padded_x)
