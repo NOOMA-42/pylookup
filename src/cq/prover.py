@@ -116,8 +116,6 @@ class Prover:
         self.T_poly = T_poly.ifft()
         # 2.b. vanishing polynomial: X^N - 1, N = group_order_N - 1
         ZV_array = [Scalar(-1)] + [Scalar(0)] * (group_order_N - 1) + [Scalar(1)]
-        # vanishing polynomial in coefficient form
-        ZV_poly = Polynomial(ZV_array, Basis.MONOMIAL)
         # vanishing polynomial: X^n - 1, N = group_order_n - 1
         ZH_array = [Scalar(-1)] + [Scalar(0)] * (group_order_n - 1) + [Scalar(1)]
         # vanishing polynomial in coefficient form
