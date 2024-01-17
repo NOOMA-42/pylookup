@@ -24,6 +24,7 @@ class Proof:
     S_comm: G2Point
     proof_pederson: Proof_pederson
 
+
 class Prover:
     def __init__(self, setup: Setup):
         self.setup = setup
@@ -60,11 +61,16 @@ class Prover:
         setup = self.setup
         b = a * self.setup.roots_N[i]
 
-        f_values = []
-        f_values.append(a - b)
-        f_values.append(a * setup.roots_n[1] - b)
-        f_values.append(a)
-        f_values.append(b)
+        f_values = [Scalar(0)] * (setup.N.bit_length() + 5)
+        f_values[0] = a - b
+        f_values[1] = a * setup.roots_n[1] - b
+        f_values[2] = a
+        f_values[3] = b
+        f_values[4] = a / b
+        for i in range(5, len(f_values)):
+            f_values[i] = f_values[i - 1] ** 2
+        f = Polynomial(f_values, Basis.LAGRANGE).ifft()
+        print(f)
 
     def prove_pederson(self, r: Scalar, cm: G1, v: Scalar):
         # pederson commitment proof. (s1, s2 are verifier randomness)
@@ -79,7 +85,6 @@ class Prover:
         t2 = s2 + r * c
 
         return Proof_pederson(R, t1, t2)
-
 
 
 if __name__ == "__main__":
