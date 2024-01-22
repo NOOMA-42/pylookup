@@ -9,6 +9,24 @@ from src.common_util.merlin.keccak import SHA3_256
 from src.common_util.poly_optimized import Polynomial, Basis
 
 
+# utility functions
+def vanishing_poly(n: int) -> Polynomial:
+    vals = [Scalar(-1)] + [Scalar(0)] * (n - 1) + [Scalar(1)]
+    return Polynomial(vals, Basis.MONOMIAL)
+
+
+def lagrange_polys(n: int):
+    polys = []
+    for i in range(n):
+        poly = Polynomial([Scalar(0)] * i + [Scalar(1)] + [Scalar(0)] * (n - i - 1), Basis.LAGRANGE)
+        polys.append(poly.ifft())
+
+    return polys
+
+
+# Change of variable e.g. f(X) -> f(aX)
+
+
 @dataclass
 class Proof_pederson:
     R: G1Point
@@ -54,23 +72,50 @@ class Prover:
         S_comm = setup.kzgSetup.commit_G2(S_mono)
 
         proof_pederson = self.prove_pederson(r, cm, v)
+        self.prove_unity(a, i)
 
         return Proof(cm, z_comm, T_comm, S_comm, proof_pederson)
 
     def prove_unity(self, a: Scalar, i: int):
         setup = self.setup
+        n = setup.n
         b = a * self.setup.roots_N[i]
+        r0, r1, r2, r3 = Scalar(11), Scalar(22), Scalar(33), Scalar(44)
+        r_poly = Polynomial([r1, r2, r3], Basis.MONOMIAL)
+        z_vn = vanishing_poly(n)
+        rho_polys = lagrange_polys(n)
+        sigma = setup.roots_n[1]
 
-        f_values = [Scalar(0)] * (setup.N.bit_length() + 5)
+        # setup f(X)
+        f_values = [Scalar(0)] * (setup.N.bit_length() + 6)
         f_values[0] = a - b
-        f_values[1] = a * setup.roots_n[1] - b
+        f_values[1] = a * sigma - b
         f_values[2] = a
         f_values[3] = b
         f_values[4] = a / b
         for i in range(5, len(f_values)):
             f_values[i] = f_values[i - 1] ** 2
-        f = Polynomial(f_values, Basis.LAGRANGE).ifft()
-        print(f)
+        f_values[setup.N.bit_length() + 4] += r0
+        f_poly = Polynomial(f_values, Basis.LAGRANGE).ifft()
+        f_poly = f_poly + r_poly * z_vn
+
+        f_shift_1 = f_poly.scale(setup.roots_n[-1])  # f(sigma^-1 * X)
+        f_shift_2 = f_poly.scale(setup.roots_n[-2])  # f(sigma^-2 * X)
+
+        # setup p(X)
+        p_poly = (f_poly - (Polynomial([-b, a]))) * (rho_polys[0] + rho_polys[1])
+        p_poly += ((1 - sigma) * f_poly - f_shift_2 + f_shift_1) * rho_polys[2]
+        p_poly += (f_poly + f_shift_2 - sigma * f_shift_1) * rho_polys[3]
+        p_poly += (f_poly * f_shift_1 - f_shift_2) * rho_polys[4]
+
+        # poly_prod = (X - 1) (X - w) (X - w^2) (X - w^3) (X - w^4) (X - w^(5 + logN)) (X - w^(6 + logN))
+        poly_prod = Polynomial([Scalar(1)])
+        for i in range(n):
+            if i < 5 or i >= 5 + setup.N.bit_length():
+                poly_prod = poly_prod * Polynomial([Scalar(-setup.roots_n[i]), Scalar(1)])
+
+
+
 
     def prove_pederson(self, r: Scalar, cm: G1, v: Scalar):
         # pederson commitment proof. (s1, s2 are verifier randomness)
@@ -88,6 +133,9 @@ class Prover:
 
 
 if __name__ == "__main__":
-    setup = Setup.example_setup()
-    prover = Prover(setup)
-    proof = prover.prove(Scalar(2))
+    n = 8
+    print(vanishing_poly(n))
+    print(lagrange_polys(n))
+    # setup = Setup.example_setup()
+    # prover = Prover(setup)
+    # proof = prover.prove(Scalar(2))

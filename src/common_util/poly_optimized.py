@@ -16,7 +16,7 @@ class Polynomial:
     def __str__(self):
         return f"values: {self.values}, basis: {self.basis}"
 
-    def __init__(self, values: list[Scalar], basis: Basis):
+    def __init__(self, values: list[Scalar], basis: Basis = Basis.MONOMIAL):
         assert all(isinstance(x, Scalar) for x in values)
         assert isinstance(basis, Basis)
         self.values = values
@@ -239,3 +239,11 @@ class Polynomial:
             return y
         else:
             return self.coeff_eval(x)
+
+    # E.g. f(X) -> f(aX)
+    def scale(self, a: Scalar):
+        assert self.basis == Basis.MONOMIAL
+        # Multiply each coefficient by a to the power of its degree
+        new_values = [coeff * (a ** i) for i, coeff in enumerate(self.values)]
+
+        return Polynomial(new_values)
