@@ -78,6 +78,7 @@ class Prover:
 
     def prove_unity(self, a: Scalar, i: int):
         setup = self.setup
+        logN = setup.N.bit_length()
         n = setup.n
         b = a * self.setup.roots_N[i]
         r0, r1, r2, r3 = Scalar(11), Scalar(22), Scalar(33), Scalar(44)
@@ -87,35 +88,38 @@ class Prover:
         sigma = setup.roots_n[1]
 
         # setup f(X)
-        f_values = [Scalar(0)] * (setup.N.bit_length() + 6)
+        f_values = [Scalar(0)] * (logN + 6)
         f_values[0] = a - b
         f_values[1] = a * sigma - b
         f_values[2] = a
         f_values[3] = b
         f_values[4] = a / b
-        for i in range(5, len(f_values)):
+        for i in range(5, len(f_values) - 1):
             f_values[i] = f_values[i - 1] ** 2
-        f_values[setup.N.bit_length() + 4] += r0
+        f_values[logN + 4] += r0
         f_poly = Polynomial(f_values, Basis.LAGRANGE).ifft()
-        f_poly = f_poly + r_poly * z_vn
+        f_poly += r_poly * z_vn
 
         f_shift_1 = f_poly.scale(setup.roots_n[-1])  # f(sigma^-1 * X)
         f_shift_2 = f_poly.scale(setup.roots_n[-2])  # f(sigma^-2 * X)
 
         # setup p(X)
         p_poly = (f_poly - (Polynomial([-b, a]))) * (rho_polys[0] + rho_polys[1])
-        p_poly += ((1 - sigma) * f_poly - f_shift_2 + f_shift_1) * rho_polys[2]
-        p_poly += (f_poly + f_shift_2 - sigma * f_shift_1) * rho_polys[3]
+        p_poly += (f_poly * (1 - sigma) - f_shift_2 + f_shift_1) * rho_polys[2]
+        p_poly += (f_poly + f_shift_2 - f_shift_1 * sigma) * rho_polys[3]
         p_poly += (f_poly * f_shift_1 - f_shift_2) * rho_polys[4]
 
         # poly_prod = (X - 1) (X - w) (X - w^2) (X - w^3) (X - w^4) (X - w^(5 + logN)) (X - w^(6 + logN))
         poly_prod = Polynomial([Scalar(1)])
         for i in range(n):
-            if i < 5 or i >= 5 + setup.N.bit_length():
+            if i < 5 or i >= 5 + logN:
                 poly_prod = poly_prod * Polynomial([Scalar(-setup.roots_n[i]), Scalar(1)])
 
+        p_poly += (f_poly - (f_shift_1 * f_shift_1)) * poly_prod
+        p_poly += (f_shift_1 - Scalar(1)) * rho_polys[n - 1]
 
-
+        h_hat = p_poly / z_vn
+        print(h_hat)
 
     def prove_pederson(self, r: Scalar, cm: G1, v: Scalar):
         # pederson commitment proof. (s1, s2 are verifier randomness)
@@ -134,8 +138,6 @@ class Prover:
 
 if __name__ == "__main__":
     n = 8
-    print(vanishing_poly(n))
-    print(lagrange_polys(n))
-    # setup = Setup.example_setup()
-    # prover = Prover(setup)
-    # proof = prover.prove(Scalar(2))
+    setup = Setup.example_setup()
+    prover = Prover(setup)
+    proof = prover.prove(Scalar(2))
