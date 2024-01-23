@@ -5,6 +5,7 @@ from src.common_util.poly import Polynomial, Basis
 from src.cq.verifier import VerificationKey
 from src.cq.program import CommonPreprocessedInput
 from src.cq.fk import fk
+from src.cq.fft import ifft
 
 @dataclass
 class Setup(object):
@@ -54,14 +55,8 @@ class Setup(object):
 
 
     def precompute_with_fk(table, powers_of_x):
-        print("\n ***************** start fk_test ****************")
         t_values = [Scalar(val) for val in table]
-        # get T(X) with lagrange interpolation
-        T_poly_lag = Polynomial(t_values, Basis.LAGRANGE)
-        # get T(X) in coefficient form with ifft
-        T_poly = T_poly_lag.ifft()
-        t_poly_coeffs = T_poly.values
-
+        t_poly_coeffs = ifft(t_values)
         # compute h values with fk
         return fk(t_poly_coeffs, powers_of_x)
 
