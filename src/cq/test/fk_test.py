@@ -67,7 +67,6 @@ def compute_commitment_without_fk(table, setup, witness):
     t_values = [Scalar(val) for val in table]
     duplicates = dict(Counter(witness))
     m_values = [Scalar(duplicates.get(val, 0)) for val in table]
-    table_len = len(table)
 
     A_values = []
     for i, t_i in enumerate(t_values):
@@ -76,29 +75,9 @@ def compute_commitment_without_fk(table, setup, witness):
         # sanity check
         assert A_i == m_values[i]/(beta + t_i), "A: not equal"
 
-    roots = Scalar.roots_of_unity(len(A_values))
-
     T_poly_lag = Polynomial(t_values, Basis.LAGRANGE)
     # T(X) in coefficient form
     T_poly = T_poly_lag.ifft()
-
-    Q_T_Comm_list2 = []
-    K_T_Comm_list_2 = []
-    for i in range(table_len):
-        T_at_wi = T_poly.coeff_eval(roots[i])
-        deno_poly = Polynomial(
-            [Scalar(-roots[i]), Scalar(1)], Basis.MONOMIAL)
-        scale = roots[i]/table_len
-        K_poly = (T_poly - T_at_wi)/deno_poly
-        K_T_Comm = setup.commit_g1(K_poly)
-        K_T_Comm_list_2.append(K_T_Comm)
-
-        Q_T_i = K_poly * scale
-        Q_T_comm = b.multiply(K_T_Comm, scale.n)
-        # Q_T_comm = setup.commit_g1(Q_T_i)
-        # print("Q_T_comm: ", Q_T_comm)
-        Q_T_comm = setup.commit_g1(Q_T_i)
-        Q_T_Comm_list2.append(Q_T_comm)
 
     # vanishing polynomial: X^N - 1, N = group_order_N - 1
     group_order_N = len(table)
