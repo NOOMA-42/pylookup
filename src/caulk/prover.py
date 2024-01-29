@@ -78,7 +78,7 @@ class Prover:
 
     def prove_unity(self, a: Scalar, i: int):
         setup = self.setup
-        logN = setup.N.bit_length()
+        logN = setup.logN
         n = setup.n
         b = a * self.setup.roots_N[i]
         r0, r1, r2, r3 = Scalar(11), Scalar(22), Scalar(33), Scalar(44)
@@ -96,11 +96,12 @@ class Prover:
         f_values[4] = a / b
         for i in range(5, len(f_values) - 1):
             f_values[i] = f_values[i - 1] ** 2
-        f_values[logN + 4] += r0
+        f_values[logN + 5] += r0
         f_poly = Polynomial(f_values, Basis.LAGRANGE).ifft()
         f_poly += r_poly * z_vn
 
         f_shift_1 = f_poly.scale(setup.roots_n[-1])  # f(sigma^-1 * X)
+        assert f_shift_1.eval(sigma) == f_poly.eval(Scalar(1))
         f_shift_2 = f_poly.scale(setup.roots_n[-2])  # f(sigma^-2 * X)
 
         # setup p(X)
@@ -118,8 +119,7 @@ class Prover:
         p_poly += (f_poly - (f_shift_1 * f_shift_1)) * poly_prod
         p_poly += (f_shift_1 - Scalar(1)) * rho_polys[n - 1]
 
-        h_hat = p_poly / z_vn
-        print(h_hat)
+        h_hat_poly = p_poly / z_vn
 
     def prove_pederson(self, r: Scalar, cm: G1, v: Scalar):
         # pederson commitment proof. (s1, s2 are verifier randomness)

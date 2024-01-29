@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 
 from src.common_util.curve_optimized import Scalar, G1Point, G1, ec_mul
 from src.common_util.kzg_optimized import KZGSetup
@@ -14,6 +15,7 @@ class Setup:
     h: Scalar
     h_1: G1Point
     N: int
+    logN: int
     roots_N: list[Scalar]
     n: int
     roots_n: list[Scalar]
@@ -28,12 +30,13 @@ class Setup:
         h_1 = ec_mul(G1, h)
         N = len(c)
         roots_N = Scalar.roots_of_unity(N)
+        logN = math.ceil(math.log2(N))
         # n = logN + 6
-        n = N.bit_length() + 6
+        n = logN + 6
         roots_n = Scalar.roots_of_unity(n)
 
         return cls(kzgSetup, c, c_poly, c_commit, h, h_1
-                   , N, roots_N, n, roots_n)
+                   , N, logN, roots_N, n, roots_n)
 
 
 if __name__ == "__main__":

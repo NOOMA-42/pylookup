@@ -166,6 +166,9 @@ class Polynomial:
     # Convenience method to do FFTs specifically over the subgroup over which
     # all of the proofs are operating
     def fft(self, inv=False):
+        order = len(self.values)
+        assert order == 2 ** (order.bit_length() - 1)
+
         # Fast Fourier transform, used to convert between polynomial coefficients
         # and a list of evaluations at the roots of unity
         # See https://vitalik.ca/general/2019/05/12/fft.html
