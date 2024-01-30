@@ -87,6 +87,9 @@ class Polynomial:
                     self.basis,
                 )
 
+    def __neg__(self):
+        return Polynomial([Scalar(0)]) - self
+
     def __mul__(self, other):
         if isinstance(other, Polynomial):
             assert self.basis == other.basis

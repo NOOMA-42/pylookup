@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from py_ecc.secp256k1.secp256k1 import bytes_to_int
 
-from setup import Setup
+from caulk_setup import Setup
 from src.caulk.util import hash_ec_points
 from src.common_util.curve_optimized import Scalar, ec_mul, G1, ec_add, ec_sub, ec_pairing, G2, G1Point, G2Point
 from src.common_util.merlin.keccak import SHA3_256
@@ -24,6 +24,10 @@ def lagrange_polys(n: int):
     return polys
 
 
+def single_term_poly(degree: int):
+    vals = [Scalar(0)] * degree + [Scalar(1)]
+    return Polynomial(vals, Basis.MONOMIAL)
+
 # Change of variable e.g. f(X) -> f(aX)
 
 
@@ -35,12 +39,25 @@ class Proof_pederson:
 
 
 @dataclass
+class Proof_unity:
+    f_comm: G1Point
+    h_comm: G1Point
+    alpha: Scalar
+    v1: Scalar
+    v2: Scalar
+    pi_f_1: G1Point
+    pi_f_2: G1Point
+    pi_p_alpha: G1Point
+
+
+@dataclass
 class Proof:
     cm: G1Point
     z_comm: G2Point
     T_comm: G1Point
     S_comm: G2Point
     proof_pederson: Proof_pederson
+    proof_unity: Proof_unity
 
 
 class Prover:
@@ -72,12 +89,13 @@ class Prover:
         S_comm = setup.kzgSetup.commit_G2(S_mono)
 
         proof_pederson = self.prove_pederson(r, cm, v)
-        self.prove_unity(a, i)
+        proof_unity = self.prove_unity(a, i)
 
-        return Proof(cm, z_comm, T_comm, S_comm, proof_pederson)
+        return Proof(cm, z_comm, T_comm, S_comm, proof_pederson, proof_unity)
 
     def prove_unity(self, a: Scalar, i: int):
         setup = self.setup
+        d = setup.kzgSetup.length
         logN = setup.logN
         n = setup.n
         b = a * self.setup.roots_N[i]
@@ -86,6 +104,7 @@ class Prover:
         z_vn = vanishing_poly(n)
         rho_polys = lagrange_polys(n)
         sigma = setup.roots_n[1]
+        z_poly = Polynomial([-b, a])
 
         # setup f(X)
         f_values = [Scalar(0)] * (logN + 6)
@@ -94,7 +113,7 @@ class Prover:
         f_values[2] = a
         f_values[3] = b
         f_values[4] = a / b
-        for i in range(5, len(f_values) - 1):
+        for i in range(5, logN + 5):
             f_values[i] = f_values[i - 1] ** 2
         f_values[logN + 5] += r0
         f_poly = Polynomial(f_values, Basis.LAGRANGE).ifft()
@@ -105,8 +124,8 @@ class Prover:
         f_shift_2 = f_poly.scale(setup.roots_n[-2])  # f(sigma^-2 * X)
 
         # setup p(X)
-        p_poly = (f_poly - (Polynomial([-b, a]))) * (rho_polys[0] + rho_polys[1])
-        p_poly += (f_poly * (1 - sigma) - f_shift_2 + f_shift_1) * rho_polys[2]
+        p_poly = (f_poly - z_poly) * (rho_polys[0] + rho_polys[1])
+        p_poly += (f_poly * (Scalar(1) - sigma) - f_shift_2 + f_shift_1) * rho_polys[2]
         p_poly += (f_poly + f_shift_2 - f_shift_1 * sigma) * rho_polys[3]
         p_poly += (f_poly * f_shift_1 - f_shift_2) * rho_polys[4]
 
@@ -120,6 +139,33 @@ class Prover:
         p_poly += (f_shift_1 - Scalar(1)) * rho_polys[n - 1]
 
         h_hat_poly = p_poly / z_vn
+        h_poly = h_hat_poly + (single_term_poly(d-2) * z_poly)
+
+        f_comm = setup.kzgSetup.commit_G1(f_poly)
+        h_comm = setup.kzgSetup.commit_G1(h_poly)
+
+        # alpha is verifier randomness
+        alpha = Scalar(999)
+        alpha_1 = setup.roots_n[-1] * alpha
+        alpha_2 = setup.roots_n[-2] * alpha
+        f_alpha_1 = f_poly.eval(alpha_1)
+        f_alpha_2 = f_poly.eval(alpha_2)
+
+        p_alpha_poly = h_hat_poly * (-z_vn.eval(alpha))
+        p_alpha_poly += (f_poly - z_poly) * (rho_polys[0].eval(alpha) + rho_polys[1].eval(alpha))
+        p_alpha_poly += (f_poly * (Scalar(1) - sigma) - f_alpha_2 + f_alpha_1) * rho_polys[2].eval(alpha)
+        p_alpha_poly += (f_poly + f_alpha_2 - sigma * f_alpha_1) * rho_polys[3].eval(alpha)
+        p_alpha_poly += (f_poly * f_alpha_1 - f_alpha_2) * rho_polys[4].eval(alpha)
+        p_alpha_poly += (f_poly - f_alpha_1 * f_alpha_1) * poly_prod.eval(alpha)
+        p_alpha_poly += (f_alpha_1 - Scalar(1)) * rho_polys[n - 1].eval(alpha)
+
+        assert p_alpha_poly.eval(alpha) == Scalar(0)
+
+        v1, pi_f_1 = setup.kzgSetup.open(p_alpha_poly, alpha_1)
+        v2, pi_f_2 = setup.kzgSetup.open(p_alpha_poly, alpha_2)
+        _, pi_p_alpha = setup.kzgSetup.open(p_alpha_poly, alpha)
+
+        return Proof_unity(f_comm, h_comm, alpha, v1, v2, pi_f_1, pi_f_2, pi_p_alpha)
 
     def prove_pederson(self, r: Scalar, cm: G1, v: Scalar):
         # pederson commitment proof. (s1, s2 are verifier randomness)
