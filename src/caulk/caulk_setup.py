@@ -19,6 +19,7 @@ class Setup:
     roots_N: list[Scalar]
     n: int
     roots_n: list[Scalar]
+    poly_prod: Polynomial
 
     @classmethod
     def example_setup(cls):
@@ -35,8 +36,14 @@ class Setup:
         n = logN + 6
         roots_n = Scalar.roots_of_unity(n)
 
+        # poly_prod = (X - 1) (X - w) (X - w^2) (X - w^3) (X - w^4) (X - w^(5 + logN)) (X - w^(6 + logN))
+        poly_prod = Polynomial([Scalar(1)])
+        for i in range(n):
+            if i < 5 or i >= 5 + logN:
+                poly_prod = poly_prod * Polynomial([Scalar(-roots_n[i]), Scalar(1)])
+
         return cls(kzgSetup, c, c_poly, c_commit, h, h_1
-                   , N, logN, roots_N, n, roots_n)
+                   , N, logN, roots_N, n, roots_n, poly_prod)
 
 
 if __name__ == "__main__":

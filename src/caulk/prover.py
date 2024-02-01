@@ -129,13 +129,7 @@ class Prover:
         p_poly += (f_poly + f_shift_2 - f_shift_1 * sigma) * rho_polys[3]
         p_poly += (f_poly * f_shift_1 - f_shift_2) * rho_polys[4]
 
-        # poly_prod = (X - 1) (X - w) (X - w^2) (X - w^3) (X - w^4) (X - w^(5 + logN)) (X - w^(6 + logN))
-        poly_prod = Polynomial([Scalar(1)])
-        for i in range(n):
-            if i < 5 or i >= 5 + logN:
-                poly_prod = poly_prod * Polynomial([Scalar(-setup.roots_n[i]), Scalar(1)])
-
-        p_poly += (f_poly - (f_shift_1 * f_shift_1)) * poly_prod
+        p_poly += (f_poly - (f_shift_1 * f_shift_1)) * setup.poly_prod
         p_poly += (f_shift_1 - Scalar(1)) * rho_polys[n - 1]
 
         h_hat_poly = p_poly / z_vn
@@ -156,7 +150,7 @@ class Prover:
         p_alpha_poly += (f_poly * (Scalar(1) - sigma) - f_alpha_2 + f_alpha_1) * rho_polys[2].eval(alpha)
         p_alpha_poly += (f_poly + f_alpha_2 - sigma * f_alpha_1) * rho_polys[3].eval(alpha)
         p_alpha_poly += (f_poly * f_alpha_1 - f_alpha_2) * rho_polys[4].eval(alpha)
-        p_alpha_poly += (f_poly - f_alpha_1 * f_alpha_1) * poly_prod.eval(alpha)
+        p_alpha_poly += (f_poly - f_alpha_1 * f_alpha_1) * setup.poly_prod.eval(alpha)
         p_alpha_poly += (f_alpha_1 - Scalar(1)) * rho_polys[n - 1].eval(alpha)
 
         assert p_alpha_poly.eval(alpha) == Scalar(0)
