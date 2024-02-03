@@ -144,9 +144,10 @@ class Polynomial:
             if (self.basis == Basis.MONOMIAL):
                 c1 = self.values
                 c2 = [other]
-                res = P.polydiv(c1,c2)
+                qx, rx = P.polydiv(c1,c2)
+                assert rx == [0] # Divisor is a scalar, so remainder should be 0
                 return Polynomial(
-                    res,
+                    qx,
                     self.basis,
                 )
 
