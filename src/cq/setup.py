@@ -16,8 +16,9 @@ class Setup(object):
 
     @classmethod
     # tau: a random number whatever you choose
-    def generate_srs(self, powers: int, tau: int):
-        print("Start to generate structured reference string")
+    def generate_srs(self, powers: int, tau: int, verbose):
+        if verbose:
+            print("Start to generate structured reference string")
 
         # Initialize powers_of_x with 0 values
         powers_of_x = [0] * powers
@@ -33,7 +34,8 @@ class Setup(object):
                 powers_of_x[i] = b.multiply(powers_of_x[i - 1], tau)
 
         assert b.is_on_curve(powers_of_x[1], b.b)
-        print("Generated G1 side, X^1 point: {}".format(powers_of_x[1]))
+        if verbose:
+            print("Generated G1 side, X^1 point: {}".format(powers_of_x[1]))
 
         powers_of_x2 = [0] * (powers + 1)
         powers_of_x2[0] = b.G2
@@ -43,11 +45,13 @@ class Setup(object):
                 powers_of_x2[i] = b.multiply(powers_of_x2[i - 1], tau)
 
         assert b.is_on_curve(powers_of_x2[1], b.b2)
-        print("Generated G2 side, X^1 point: {}".format(powers_of_x2[1]))
+        if verbose:
+            print("Generated G2 side, X^1 point: {}".format(powers_of_x2[1]))
 
         # assert b.pairing(b.G2, powers_of_x[1]) == b.pairing(powers_of_x2[1], b.G1)
-        print("X^1 points checked consistent")
-        print("Finished to generate structured reference string")
+        if verbose:
+            print("X^1 points checked consistent")
+            print("Finished to generate structured reference string")
         self.powers_of_x = powers_of_x
         self.powers_of_x2 = powers_of_x2
         return True
@@ -77,9 +81,9 @@ class Setup(object):
         return ec_lincomb([(s, x) for s, x in zip(self.powers_of_x2, coeffs)])
 
     @classmethod
-    def execute(self, powers: int, tau: int, public_table: list):
+    def execute(self, powers: int, tau: int, public_table: list, verbose: bool = True):
         # 1. generate_srs: will do in the runtime
-        self.generate_srs(powers, tau)
+        self.generate_srs(powers, tau, verbose)
         # 2. Compute and output [ZV(x)] * G2
         # vanishing polynomial: X^N - 1, N = group_order_N - 1
         Z_V_array = [Scalar(-1)] + [Scalar(0)] * (len(public_table) - 1) + [Scalar(1)]
@@ -87,17 +91,20 @@ class Setup(object):
         Z_V_poly = Polynomial(Z_V_array, Basis.MONOMIAL)
 
         Z_V_comm_2 = self.commit_g2(Z_V_poly)
-        print("Commitment of Z_V(X) on G2: ", Z_V_comm_2)
+        if verbose:
+            print("Commitment of Z_V(X) on G2: ", Z_V_comm_2)
         # 3. Compute and output [T(x)] * G2
         # TODO: optimization
         t_values = [Scalar(val) for val in public_table]
         T_poly = Polynomial(t_values, Basis.LAGRANGE)
         T_comm_2 = self.commit_g2(T_poly)
-        print("Commitment of T(X) on G2: ", T_comm_2)
+        if verbose:
+            print("Commitment of T(X) on G2: ", T_comm_2)
         # 4. (a): qi = [Qi(x)] * G1
         # 4. (b): [Li(x)] * G1
         # 4. (c): [Li(x)−Li(0) / x] * G1
-        print("setup complete")
+        if verbose:
+            print("setup complete")
         self.Z_V_comm_2 = Z_V_comm_2
         self.T_comm_2 = T_comm_2
 
