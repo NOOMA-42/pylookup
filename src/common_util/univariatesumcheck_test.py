@@ -15,10 +15,16 @@ M = [
     [0, 1, 0, 0],
     [0, 0, 1, 0],
 ]
+M2 = [
+    [0, 0, 1, 0],
+    [0, 0, 1, 0],
+    [0, 0, 1, 0],
+]
 # the table we look up on
 c = [1, 2, 3, 4]
 # the result be looked up
 a = [3, 2, 3]
+a2 = [3, 3, 3]
 # unique of a
 t = [2, 3]
 
@@ -34,9 +40,14 @@ class UnivariateSumcheckTest(unittest.TestCase):
         V = Scalar.roots_of_unity(m) # set for mu
         H = Scalar.roots_of_unity(N) # set for rho
         alpha = Scalar(3)
-        construct_Dx(M, V, H, a, alpha)
-        # TODO: check this statement: A good formation of H_i requires caulk+ core. t is 2, 3, so H_i corresponding to their index are H[1], H[2]
+        Dx = construct_Dx(M, V, H, a, alpha)
+        # TODO: check this statement: A proof of formation of H_i requires caulk+ core. t is 2, 3, so H_i corresponding to their index are H[1], H[2]
         
+        V = list(map(Scalar, [1, 2, 3]))
+        H = list(map(Scalar, [1, 2, 3, 4]))
+        alpha = Scalar(1)
+        Dx = construct_Dx(M2, V, H, a2, alpha)
+        assert Dx == Scalar(1)
 
     """ def test_lagrange_basis(self) -> None:
         # public table

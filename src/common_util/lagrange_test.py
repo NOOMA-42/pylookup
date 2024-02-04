@@ -13,4 +13,3 @@ class LagrangeBasisTest(unittest.TestCase):
         l_i = lagrange_basis(1, list(map(Scalar, [1, 2, 3])))
         assert l_i.coeff_eval(Scalar(1)) == 0
         assert l_i.coeff_eval(Scalar(3)) == 0
-        print("lagrange basis test pass")

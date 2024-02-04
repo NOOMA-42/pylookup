@@ -58,6 +58,9 @@ def construct_Dx(M: list[list], V: list[Scalar], H: list[Scalar], vec_a: list, a
          v
     [L1, L2, L1]
     """
+    assert len(V) == len(M), "V (mu) size must be equal to the number of rows in M"
+    assert len(H) == len(M[0]), "H (rho) size must be equal to the number of columns in M"
+    assert len(vec_a) == len(M), "size of a, the looked up value, must be equal to the number of rows in M"
     col_mapping = create_col_mapping(M)
     c_index = [(i, H[i]) for i in set(col_mapping)]
     H_I = [e for _, e in c_index]
@@ -65,9 +68,19 @@ def construct_Dx(M: list[list], V: list[Scalar], H: list[Scalar], vec_a: list, a
     rho_col_j_to_multiply = [rho_col_j[i] for i in col_mapping if i in rho_col_j]
     mu_j = [lagrange_basis(i, V) for i in range(len(V))]
     
-    D_x = [rho_col_j_to_multiply[i] * mu_j[i].coeff_eval(alpha) / rho_col_j_to_multiply[i].coeff_eval(0) for i in range(len(mu_j))]
-    zero_polynomial = Polynomial([Scalar(0)], Basis.MONOMIAL)
+    mu_j = [i if isinstance(i, Scalar) else i.coeff_eval(alpha) for i in mu_j]
+    rho_col_j_to_multiply_0 = [i if isinstance(i, Scalar) else i.coeff_eval(0) for i in rho_col_j_to_multiply]
+    D_x = [rho_col_j_to_multiply[i] * mu_j[i] / rho_col_j_to_multiply_0[i] for i in range(len(mu_j))]
+     
+    if (isinstance(rho_col_j_to_multiply_0[0], Scalar) and 
+        isinstance(mu_j[0], Scalar) and
+        isinstance(rho_col_j_to_multiply[0], Scalar)
+    ):
+        zero_polynomial = Scalar(0)
+    else:
+        zero_polynomial = Polynomial([Scalar(0)], Basis.MONOMIAL)
     D_x = sum(D_x, zero_polynomial)
+    
     return D_x
 
 def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_x: Polynomial, alpha: Scalar):
