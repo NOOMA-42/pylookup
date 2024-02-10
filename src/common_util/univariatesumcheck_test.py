@@ -1,6 +1,14 @@
 import random, unittest
+import numpy as np
 from src.common_util.poly import Polynomial, Basis, Scalar
-from src.common_util.univariatesumcheck import create_col_mapping, construct_Dx
+from src.common_util.curve import left_rotate_root_of_unity
+from src.common_util.univariatesumcheck import (
+    create_col_mapping,
+    construct_H_I,
+    construct_Dx,
+    construct_rho_col_j, 
+    prove as univariate_sumcheck_prove
+)
 from src.common_util.lagrange import lagrange_basis
 from src.cq.setup import Setup # TODO: refactor to common_util
 
@@ -39,6 +47,7 @@ class UnivariateSumcheckTest(unittest.TestCase):
 
         V = Scalar.roots_of_unity(m) # set for mu
         H = Scalar.roots_of_unity(N) # set for rho
+        H = left_rotate_root_of_unity(H)
         alpha = Scalar(3)
         Dx = construct_Dx(M, V, H, a, alpha)
         # TODO: check this statement: A proof of formation of H_i requires caulk+ core. t is 2, 3, so H_i corresponding to their index are H[1], H[2]
@@ -48,6 +57,40 @@ class UnivariateSumcheckTest(unittest.TestCase):
         alpha = Scalar(1)
         Dx = construct_Dx(M2, V, H, a2, alpha)
         assert Dx == Scalar(1)
+
+    def test_construct_rho_col_j(self) -> None:
+        """ 
+        M = [
+            [0, 0, 1, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+        ],
+        col_mapping = [3, 2, 3]
+        """
+        col_mapping = create_col_mapping(M)
+        H = Scalar.roots_of_unity(len(c))
+        H = left_rotate_root_of_unity(H)
+        rho_col_j = construct_rho_col_j(col_mapping, H)
+        assert len(rho_col_j) == 3, "3 columns in col_mapping"
+        assert np.all(rho_col_j[0].values == rho_col_j[2].values), "1st and 3rd element are rho_3"
+        # assert rho_col_j == [Polynomial(list(map(Scalar, [1, 2, 3, 4])), Basis.LAGRANGE), Polynomial(list(map(Scalar, [1, 2, 3, 4])), Basis.LAGRANGE), Polynomial(list(map(Scalar, [1, 2, 3, 4])), Basis.LAGRANGE)]
+
+    def test_prove(self) -> None:
+        m = len(M) # number of rows = number of mu
+        N = len(c) # table size
+
+        V = Scalar.roots_of_unity(m) # set for mu
+        H = Scalar.roots_of_unity(N) # set for rho
+        H = left_rotate_root_of_unity(H)
+        alpha = Scalar(3)
+        Dx = construct_Dx(M, V, H, a, alpha)
+        t_x = Polynomial(list(map(Scalar, [2, 3])), Basis.LAGRANGE)
+        phi_x = Polynomial(list(map(Scalar, [3, 2, 3])), Basis.LAGRANGE)
+        H_I = construct_H_I(H, M)
+        zI_x = Polynomial(H_I, Basis.LAGRANGE)
+        setup = Setup.execute(2, 2, [1, 2], False) # TODO: check arguments
+        pi2 = univariate_sumcheck_prove(setup, Dx, t_x, phi_x, zI_x, alpha, N, m)
+
 
     """ def test_lagrange_basis(self) -> None:
         # public table
