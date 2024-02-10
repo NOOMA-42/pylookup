@@ -151,6 +151,25 @@ class Polynomial:
                     self.basis,
                 )
 
+    def div_with_remainder(self, other):
+        assert isinstance(other, Polynomial)
+        assert self.basis == other.basis
+        if (self.basis == Basis.LAGRANGE):
+            assert len(self.values) == len(other.values)
+            return Polynomial(
+                [x / y for x, y in zip(self.values, other.values)],
+                self.basis,
+            )
+        if (self.basis == Basis.MONOMIAL):
+            qx, rx = P.polydiv(self.values, other.values)
+            return Polynomial(
+                qx,
+                self.basis,
+            ), Polynomial(
+                rx,
+                self.basis,
+            )
+
     def shift(self, shift: int):
         assert self.basis == Basis.LAGRANGE
         assert shift < len(self.values)
