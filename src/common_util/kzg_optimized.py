@@ -56,8 +56,8 @@ class KZGSetup(object):
         q = (poly - v) / Polynomial([Scalar(-x), Scalar(1)], Basis.MONOMIAL)
         return v, self.commit_G1(q)
 
-    def verify(self, C: G1Point, pi: G1Point, x: Scalar, v: Scalar):
-        LHS = ec_pairing(G2, ec_sub(C, ec_mul(G1, v)))
+    def verify(self, C: G1Point, pi: G1Point, x: Scalar, y: Scalar):
+        LHS = ec_pairing(G2, ec_sub(C, ec_mul(G1, y)))
         comm = self.commit_G2(Polynomial([Scalar(-x), Scalar(1)], Basis.MONOMIAL))
         RHS = ec_pairing(comm, pi)
         assert LHS == RHS
