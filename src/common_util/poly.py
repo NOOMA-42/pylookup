@@ -246,3 +246,15 @@ class Polynomial:
         for i in range(1, len(coeffs)):
             result = result + coeffs[i] * x**i
         return result
+
+def construct_non_multiplicativegroup_vanishing_poly(group: list[Scalar]) -> Polynomial:
+    """  
+    When the group is not multiplicative,
+    We can't utilized the fact that vanishing polynomial: X^n - 1, N = group_order_n - 1
+    """
+    X = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
+    z_I_x = Scalar(1)
+    for i in group:
+        z_I_x = (X - i) * z_I_x
+    
+    return z_I_x
