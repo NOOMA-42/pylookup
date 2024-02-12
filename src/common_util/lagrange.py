@@ -1,7 +1,7 @@
 from src.common_util.poly import Polynomial, Basis
 from src.common_util.curve import Scalar
 
-def lagrange_basis(i: Scalar, xi: list) -> Polynomial:
+def lagrange_basis(i: int, xi: list) -> Polynomial:
     """
     Calculate the i-th Lagrange polynomial at point X.
     

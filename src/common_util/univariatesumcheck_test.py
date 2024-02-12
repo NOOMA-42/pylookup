@@ -1,6 +1,11 @@
 import random, unittest
 import numpy as np
-from src.common_util.poly import Polynomial, Basis, Scalar
+from src.common_util.poly import (
+    Polynomial, 
+    Basis, 
+    Scalar, 
+    construct_non_multiplicativegroup_vanishing_poly
+)
 from src.common_util.curve import left_rotate_root_of_unity
 from src.common_util.univariatesumcheck import (
     create_col_mapping,
@@ -80,14 +85,25 @@ class UnivariateSumcheckTest(unittest.TestCase):
         N = len(c) # table size
 
         V = Scalar.roots_of_unity(m) # set for mu
+        # V = left_rotate_root_of_unity(V)
         H = Scalar.roots_of_unity(N) # set for rho
-        H = left_rotate_root_of_unity(H)
+        # H = left_rotate_root_of_unity(H)
         alpha = Scalar(3)
+        
         Dx = construct_Dx(M, V, H, a, alpha)
-        t_x = Polynomial(list(map(Scalar, [2, 3])), Basis.LAGRANGE)
-        phi_x = Polynomial(list(map(Scalar, [3, 2, 3])), Basis.LAGRANGE)
+        # t_x = Polynomial(list(map(Scalar, [2, 3])), Basis.LAGRANGE)
+        
+        zero_polynomial = Polynomial([Scalar(0)], Basis.MONOMIAL)
+        # interpolate through H_I, shouldn't use default lagrange interpolation and fft 
         H_I = construct_H_I(H, M)
-        zI_x = Polynomial(H_I, Basis.LAGRANGE)
+        t_x = sum([lagrange_basis(i, H_I) * Scalar(e) for i, e in enumerate([2, 3])], zero_polynomial)
+
+
+        # phi_x = Polynomial(list(map(Scalar, [3, 2, 3])), Basis.LAGRANGE)
+            # Note: not 2^k exponentiation, shouldn't use fft
+        phi_x = sum([lagrange_basis(i, V) * Scalar(e) for i, e in enumerate([3, 2, 3])], zero_polynomial)
+        zI_x = construct_non_multiplicativegroup_vanishing_poly(H_I)
+
         setup = Setup.execute(2, 2, [1, 2], False) # TODO: check arguments
         pi2 = univariate_sumcheck_prove(setup, Dx, t_x, phi_x, zI_x, alpha, N, m)
 

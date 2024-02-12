@@ -132,11 +132,14 @@ def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_
 
     """
     
+    # FIXME: ftt mind need to rotate as well
     # long division to get XR(X) and Q2(X)
-    phi_alpha = phi_x.barycentric_eval(alpha)
-    if D_x.basis == Basis.MONOMIAL:
-        D_x = D_x.fft()
-    Q2_X, XR_X = ((D_x * t_x - phi_alpha).fft(inv=True)).div_with_remainder(zI_x.fft(inv=True))    
+    
+    #phi_alpha = phi_x.barycentric_eval(alpha)
+    phi_alpha = phi_x.coeff_eval(alpha) # FIXME: root of unity might need to be rotated
+    """ if D_x.basis == Basis.MONOMIAL:
+        D_x = D_x.fft()  """
+    Q2_X, XR_X = ((D_x * t_x - phi_alpha)).div_with_remainder(zI_x)    
     R_X = XR_X / Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
 
     R_hat_x = Polynomial(Scalar(x) ** (N - m + 2))
