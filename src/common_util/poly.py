@@ -144,11 +144,31 @@ class Polynomial:
             if (self.basis == Basis.MONOMIAL):
                 c1 = self.values
                 c2 = [other]
-                res = P.polydiv(c1,c2)
+                qx, rx = P.polydiv(c1,c2)
+                assert rx == [0] # Divisor is a scalar, so remainder should be 0
                 return Polynomial(
-                    res,
+                    qx,
                     self.basis,
                 )
+
+    def div_with_remainder(self, other):
+        assert isinstance(other, Polynomial)
+        assert self.basis == other.basis
+        if (self.basis == Basis.LAGRANGE):
+            assert len(self.values) == len(other.values)
+            return Polynomial(
+                [x / y for x, y in zip(self.values, other.values)],
+                self.basis,
+            )
+        if (self.basis == Basis.MONOMIAL):
+            qx, rx = P.polydiv(self.values, other.values)
+            return Polynomial(
+                qx,
+                self.basis,
+            ), Polynomial(
+                rx,
+                self.basis,
+            )
 
     def shift(self, shift: int):
         assert self.basis == Basis.LAGRANGE
@@ -226,3 +246,15 @@ class Polynomial:
         for i in range(1, len(coeffs)):
             result = result + coeffs[i] * x**i
         return result
+
+def construct_non_multiplicativegroup_vanishing_poly(group: list[Scalar]) -> Polynomial:
+    """  
+    When the group is not multiplicative,
+    We can't utilized the fact that vanishing polynomial: X^n - 1, N = group_order_n - 1
+    """
+    X = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
+    z_I_x = Scalar(1)
+    for i in group:
+        z_I_x = (X - i) * z_I_x
+    
+    return z_I_x
