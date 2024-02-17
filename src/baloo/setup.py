@@ -2,8 +2,8 @@ import py_ecc.bn128 as b
 from dataclasses import dataclass
 from src.common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
 from src.common_util.poly import Polynomial, Basis
-from src.cq.verifier import VerificationKey
-from src.cq.program import CommonPreprocessedInput
+from src.baloo.verifier import VerificationKey
+from src.baloo.program import CommonPreprocessedInput
 
 @dataclass
 class Setup(object):

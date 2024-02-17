@@ -1,7 +1,7 @@
 import random
-from src.cq.setup import Setup
-from src.cq.program import CommonPreprocessedInput
-from src.cq.prover import Prover
+from src.baloo.setup import Setup
+from src.baloo.program import CommonPreprocessedInput
+from src.baloo.prover import Prover
 
 # setup: public setup includes srs
 # public_table: public table

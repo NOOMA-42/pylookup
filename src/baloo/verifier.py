@@ -1,6 +1,6 @@
 import py_ecc.bn128 as b
 from dataclasses import dataclass
-from src.cq.transcript import Transcript
+from src.baloo.transcript import Transcript
 from src.common_util.poly import Polynomial, Basis
 from src.common_util.curve import ec_lincomb, G2Point, Scalar
 
