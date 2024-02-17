@@ -4,8 +4,6 @@ from src.common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
 from src.common_util.poly import Polynomial, Basis
 from src.cq.verifier import VerificationKey
 from src.cq.program import CommonPreprocessedInput
-from src.cq.fk import fk
-from src.cq.fft import ifft
 
 @dataclass
 class Setup(object):
@@ -13,10 +11,8 @@ class Setup(object):
     # = ( G,    xG,  ...,  x^{d-1}G ), where G is a generator of G_1
     powers_of_x: list[G1Point]
     powers_of_x2: list[G2Point]
-    Z_V_comm_2: G2Point
-    T_comm_2: G2Point
-    # coeffs of quotient commitment polynomial of T(X) in coefficient form
-    Q_T_comm_poly_coeffs: list[G1Point]
+    Z_H_comm_1: G1Point
+    T_comm_1: G1Point
 
     @classmethod
     # tau: a random number whatever you choose
@@ -53,13 +49,6 @@ class Setup(object):
         self.powers_of_x2 = powers_of_x2
         return (powers_of_x, powers_of_x2)
 
-
-    def precompute_with_fk(table, powers_of_x):
-        t_values = [Scalar(val) for val in table]
-        t_poly_coeffs = ifft(t_values)
-        # compute h values with fk
-        return fk(t_poly_coeffs, powers_of_x)
-
     # Encodes the KZG commitment that evaluates to the given values in the group on G1
     @classmethod
     def commit_g1(self, values: Polynomial) -> G1Point:
@@ -91,25 +80,21 @@ class Setup(object):
         table_len = len(public_table)
         # 2. Compute and output [ZV(x)] * G2
         # vanishing polynomial: X^N - 1, N = group_order_N - 1
-        Z_V_array = [Scalar(-1)] + [Scalar(0)] * (table_len - 1) + [Scalar(1)]
+        Z_H_array = [Scalar(-1)] + [Scalar(0)] * (table_len - 1) + [Scalar(1)]
         # in coefficient form
-        Z_V_poly = Polynomial(Z_V_array, Basis.MONOMIAL)
+        Z_H_poly = Polynomial(Z_H_array, Basis.MONOMIAL)
+        Z_H_comm_1 = self.commit_g1(Z_H_poly)
+        print("Commitment of Z_H(X) on G1: ", Z_H_comm_1)
 
-        Z_V_comm_2 = self.commit_g2(Z_V_poly)
-        print("Commitment of Z_V(X) on G2: ", Z_V_comm_2)
-        # 3. Compute and output [T(x)] * G2
+        # 3. Compute and output [T(x)] * G1
         t_values = [Scalar(val) for val in public_table]
         T_poly = Polynomial(t_values, Basis.LAGRANGE)
-        T_comm_2 = self.commit_g2(T_poly)
-        print("Commitment of T(X) on G2: ", T_comm_2)
-        # 4. (a): qi = [Qi(x)] * G1
-        # 4. (b): [Li(x)] * G1
-        # 4. (c): [Li(x)−Li(0) / x] * G1
-        self.Z_V_comm_2 = Z_V_comm_2
-        self.T_comm_2 = T_comm_2
-        # compute with fk
-        self.Q_T_comm_poly_coeffs = self.precompute_with_fk(
-            public_table, self.powers_of_x[:table_len])
+        T_comm_1 = self.commit_g1(T_poly)
+        print("Commitment of T(X) on G1: ", T_comm_1)
+
+        self.Z_H_comm_1 = Z_H_comm_1
+        self.T_comm_1 = T_comm_1
+
         print("setup complete")
         return self
 
@@ -121,6 +106,6 @@ class Setup(object):
             Scalar.root_of_unity(pk.group_order_N),
             Scalar.root_of_unity(pk.group_order_n),
             self.powers_of_x2,
-            self.T_comm_2,
-            self.Z_V_comm_2
+            self.T_comm_1,
+            self.Z_H_comm_1
         )
