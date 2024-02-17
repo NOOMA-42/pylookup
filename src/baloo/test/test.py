@@ -31,9 +31,9 @@ def simple_test():
     # random number, normally comes from MPC(Multi-Party Computation)
     tau = 100
     # public table
-    table = [1, 2, 3, 4]
+    table = [1, 2, 3, 4, 5, 6, 7, 8]
     # values to lookup
-    witness = [1, 2, 1, 3]
+    witness = [3, 1, 2, 1]
 
     group_order_N = len(table)
     group_order_n = len(witness)

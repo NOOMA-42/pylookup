@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from collections import Counter
+import numpy as np
 from src.common_util.poly import Polynomial, Basis
 from src.common_util.curve import Scalar
-from src.cq.setup import *
-from src.cq.transcript import Transcript, Message1, Message2, Message3
+from src.baloo.setup import *
+from src.baloo.transcript import Transcript, Message1, Message2, Message3, Message4
 
 
 @dataclass
@@ -11,11 +11,12 @@ class Proof:
     msg_1: Message1
     msg_2: Message2
     msg_3: Message3
+    msg_4: Message4
 
     def flatten(self):
         proof = {}
         # msg_1
-        proof["m_comm_1"] = self.msg_1.m_comm_1
+        proof["phi_comm_1"] = self.msg_1.phi_comm_1
         # msg_2
         proof["A_comm_1"] = self.msg_2.A_comm_1
         proof["Q_A_comm_1"] = self.msg_2.Q_A_comm_1
@@ -55,178 +56,117 @@ class Prover:
 
         # Round 1
         msg_1 = self.round_1(witness)
-        self.beta = transcript.round_1(msg_1)
+        self.alpha = transcript.round_1(msg_1)
 
         # Round 2
         msg_2 = self.round_2()
-        self.gamma, self.eta = transcript.round_2(msg_2)
+        self.beta = transcript.round_2(msg_2)
 
         # Round 3
         msg_3 = self.round_3()
+        self.rho, self.gamma = transcript.round_3(msg_3)
 
-        return Proof(msg_1, msg_2, msg_3)
+        msg_4 = self.round_4()
 
-    # Prover sends commitment of m(X)
+        return Proof(msg_1, msg_2, msg_3, msg_4)
+
+    """
+    table = [1, 2, 3, 4, 5, 6, 7, 8]
+    witness = [3, 1, 2, 1]
+    t:  [1, 2, 3] # choose non-duplicated elements from witness
+    I:  [0, 1, 2] # get indexes from table
+    k = len(I) = 3
+    vanishing polynomial z_I(X) = (X - I_0)(X - I_1)(X - I_2)
+                                = (X - 0)(X - 1)(X - 2)
+    M * t = witness
+    M = [
+        [0, 0, 1],
+        [1, 0, 0],
+        [0, 1, 0],
+        [1, 0, 0],
+    ]
+    m = len(witness) # 4
+    col[0] = M[0].index(1)
+    col[1] = M[1].index(1)
+    col[2] = M[2].index(1)
+    col[3] = M[3].index(1)
+    col: [2, 0, 1, 0]
+    v_values[0] = 1 / xi_values[col[0]]
+    v_values[1] = 1 / xi_values[col[1]]
+    v_values[2] = 1 / xi_values[col[2]]
+    v_values[3] = 1 / xi_values[col[3]]
+    """
+    # Output π1 = [z_I]_2 = [z_I(x)]_2, [v]_1 = [v(x)]_1, t = [t(x)]_1
     def round_1(self, witness) -> Message1:
         setup = self.setup
-        duplicates = dict(Counter(witness))
-        self.m_values = [Scalar(duplicates.get(val, 0)) for val in self.table]
-        print("m_values: ", self.m_values)
-        m_poly = Polynomial(self.m_values, Basis.LAGRANGE)
-        self.m_poly = m_poly.ifft()
-        # commit A(X) on G1(by default)
-        self.m_comm_1 = setup.commit_g1(self.m_poly)
-        print("Commitment of m(X): ", self.m_comm_1)
+        # calculate lookup table polynomial φ(X)
+        phi_values = [Scalar(val) for val in witness]
+        phi_poly = Polynomial(phi_values, Basis.LAGRANGE)
+        # coefficient form
+        self.phi_poly = phi_poly.ifft()
+        # commit phi(X) on G1(by default)
+        self.phi_comm_1 = setup.commit_g1(self.phi_poly)
+        print("Commitment of phi(X): ", self.phi_comm_1)
+        # remove duplicated elements
+        t_values = list(set(witness))
+        # transform to Scalar
+        t_values = [Scalar(elem) for elem in t_values]
+        print("t: ", t_values)
+        # I: the index of t_values elements in public table
+        I_values = [Scalar(self.table.index(elem)) for elem in t_values]
+        print("I: ", I_values)
 
-        return Message1(self.m_comm_1)
+        k = len(I_values)
+        # vanishing polynomial in coefficient form
+        z_I_poly = Polynomial([Scalar(1)], Basis.MONOMIAL)
+        # multiple all root polynomial: (X - I_0)(X - I_1)(X - I_2)...
+        for i in range(k):
+            z_I_poly = z_I_poly * Polynomial(
+                [-I_values[i], Scalar(1)], Basis.MONOMIAL)
+        print("z_I_poly.values: ", z_I_poly.values)
+        self.z_I_poly = z_I_poly
 
-    # Prover sends commitment of A(X), Q_A(X), B_0(X), Q_B(X), P(X)
+        root_of_unity = Scalar.root_of_unity(k)
+        m = len(witness)  # 4
+        col_values = []
+        v_values = []
+        xi_values = []
+        for i in range(m):
+            col_i = t_values.index(witness[i])  # find the index of 1 in jth row of M
+            col_values.append(col_i)
+            # ξ（Xi）
+            xi = root_of_unity ** col_i
+            xi_values.append(xi)
+            v = 1 / xi
+            v_values.append(v)
+        # ξ（Xi）
+        print("xi_values: ", xi_values)
+        print("col_values: ", col_values)
+        assert np.array_equal([t_values[elem] for elem in col_values], witness)
+        print("v_values: ", v_values)
+        v_poly = Polynomial(v_values, Basis.LAGRANGE)
+        t_poly = Polynomial(t_values, Basis.LAGRANGE)
+
+        self.v_poly = v_poly.ifft()
+        self.t_poly = t_poly.ifft()
+
+        # commit
+        self.z_I_comm_2 = setup.commit_g2(self.z_I_poly)
+        self.v_comm_1 = setup.commit_g1(self.v_poly)
+        self.t_comm_1 = setup.commit_g1(self.t_poly)
+        print("self.z_I_comm_2: ", self.z_I_comm_2)
+        print("self.v_comm_1: ", self.v_comm_1)
+        print("self.t_comm_1: ", self.t_comm_1)
+        return Message1(self.z_I_comm_2, self.v_comm_1, self.t_comm_1)
+
+
     def round_2(self) -> Message2:
         setup = self.setup
-        group_order_N = self.group_order_N
-        group_order_n = self.group_order_n
-        beta = self.beta
-        m_values = self.m_values
-        t_values = self.t_values
-        table_len = group_order_N
-        # 1. commit A(X): Step 1-3 in the paper
-        # 1.a. compute A_i values
-        self.A_values = []
-        for i, t_i in enumerate(t_values):
-            A_i = m_values[i]/(beta + t_i)
-            self.A_values.append(A_i)
-            # sanity check
-            assert A_i == m_values[i]/(beta + t_i), "A: not equal"
-        print("A_values: ", self.A_values)
-
-        # 1.b. compute A(X) from A_i values
-        A_poly = Polynomial(self.A_values, Basis.LAGRANGE)
-        # A(X) in coefficient form
-        self.A_poly = A_poly.ifft()
-        assert A_poly.barycentric_eval(Scalar(0))  == self.A_poly.coeff_eval(Scalar(0)), "A value at 0 should be equal"
-
-        # 1.c. commit A(X)
-        self.A_comm_1 = setup.commit_g1(self.A_poly)
-        print("Commitment of A(X): ", self.A_comm_1)
-
-        # 2. commit Q_A(X): Step 4 in the paper
-        # 2.a. T(X) in lagrange form
-        T_poly = Polynomial(t_values, Basis.LAGRANGE)
-        # T(X) in coefficient form
-        self.T_poly = T_poly.ifft()
-        # 2.b. vanishing polynomial: X^N - 1, N = group_order_N - 1
-        ZV_array = [Scalar(-1)] + [Scalar(0)] * (group_order_N - 1) + [Scalar(1)]
-        # vanishing polynomial: X^n - 1, N = group_order_n - 1
-        ZH_array = [Scalar(-1)] + [Scalar(0)] * (group_order_n - 1) + [Scalar(1)]
-        # vanishing polynomial in coefficient form
-        ZH_poly = Polynomial(ZH_array, Basis.MONOMIAL)
-
-        t_poly_coeffs = self.T_poly.values
-        print("\nt_poly_coeffs: ", t_poly_coeffs)
-        print("\nsetup.powers_of_x: ", setup.powers_of_x)
-        srs = setup.powers_of_x[:len(t_poly_coeffs)]
-        print("\nsrs: ", srs)
-
-        roots = Scalar.roots_of_unity(len(self.A_values))
-        print("roots: ", roots)
-        for i in range(len(t_values)):
-            eval = self.T_poly.coeff_eval(roots[i])
-            print("=====> eval: ", eval)  # 1, 2, 3, 4
-            assert eval == t_values[i]
-
-        # Precomputation happens here with FK algorithm
-        Q_T_comm_poly_coeffs = setup.Q_T_comm_poly_coeffs
-        print("\n------> Q_T_comm_poly_coeffs: \n", Q_T_comm_poly_coeffs)
-
-        Q_A_Comm = b.Z1
-        for i in range(table_len):
-            K_T_Comm = b.Z1
-            root = Scalar(1)
-            for j in range(table_len):
-                K_T_Comm = b.add(K_T_Comm, b.multiply(
-                    Q_T_comm_poly_coeffs[j], root.n))
-                root = root * roots[i]
-            A_val = self.A_values[i].n
-            scale = roots[i]/table_len
-            # Compute Quotient polynomial commitment of T(X)
-            Q_T_Comm = b.multiply(K_T_Comm, scale.n)
-            A_times_Q_T_Comm = b.multiply(Q_T_Comm, A_val)
-            # Do the accumulation
-            Q_A_Comm = b.add(Q_A_Comm, A_times_Q_T_Comm)
-
-
-        self.Q_A_comm_1 = Q_A_Comm
-        print("\nCommitment of Q_A(X):  \n", self.Q_A_comm_1)
-
-        print(" \n*********** Finish to precomputed commitment of Q_A(X) **********")
-
-        # 3. commit B_0(X): Step 5-7 in the paper
-        # 3.a. compute B_0_i values
-        self.B_values = []
-        f_values = self.lookup_table
-        for i, f_i in enumerate(f_values):
-            B_i = 1 / (beta + f_i)
-            self.B_values.append(B_i)
-            # sanity check
-            assert B_i == 1 / (beta + f_i), "B: not equal"
-        # 3.b. compute B_0(X) from B_0_i values, B_0(X) = (B(X) - B(0)) / X
-        B_poly = Polynomial(self.B_values, Basis.LAGRANGE)
-        # in coefficient form
-        self.B_poly = B_poly.ifft()
-        # f(X) = X, coefficient form: [0, 1]
-        self.x_poly = Polynomial([Scalar(0), Scalar(1)], Basis.MONOMIAL)
-        B_at_0 = self.B_poly.coeff_eval(Scalar(0))
-        print("B_at_0: ", B_at_0)
-        self.B_0_poly: Polynomial = (self.B_poly - B_at_0) / self.x_poly
-        # sanity check
-        for i in range(group_order_n):
-            point = self.roots_of_unity_n[i]
-            b_value = self.B_poly.coeff_eval(point)
-            b_0_value = self.B_0_poly.coeff_eval(point)
-            assert b_value == self.B_values[i], "B_value and self.B_values[i]: Not equal"
-            assert b_0_value == (b_value - B_at_0) / point, "B_0: Not equal"
-        # 3.c. commit B_0(X)
-        self.B_0_comm_1 = setup.commit_g1(self.B_0_poly)
-        print("Commitment of B_0(X): ", self.B_0_comm_1)
-
-        # 4. commit Q_B(X): Step 9 in the paper
-        # 4.a. f(X) in coefficient form
-        f_poly = Polynomial(f_values, Basis.LAGRANGE)
-        # in coefficient form
-        self.f_poly = f_poly.ifft()
-        # commit f(X)
-        self.f_comm_1 = setup.commit_g1(self.f_poly)
-        print("Commitment of f(X): ", self.f_comm_1)
-
-        # sanity check
-        for i, B_i in enumerate(self.B_values):
-            point = self.roots_of_unity_n[i]
-            b_value = self.B_poly.coeff_eval(point)
-            f_value = self.f_poly.coeff_eval(point)
-            assert b_value == 1 / (beta + f_value) , "B quotient: Not equal"
-        # 4.b. Q_B(X) in coefficient form
-        self.Q_B_poly = (self.B_poly * (self.f_poly + beta) - Scalar(1)) / ZH_poly
-        # 4.c. commit Q_B(X): Step 9 in the paper
-        self.Q_B_comm_1 = setup.commit_g1(self.Q_B_poly)
-        print("Commitment of Q_B(X): ", self.Q_B_comm_1)
-
-        # 5. commit P(X): Step 10 in the paper
-        # N - 1 - (n - 2)
-        x_exponent_order = group_order_N - 1 - (group_order_n - 2)
-        x_exponent_values_in_coeff = [Scalar(0)] * (x_exponent_order) + [Scalar(1)]
-        x_exponent_poly = Polynomial(x_exponent_values_in_coeff, Basis.MONOMIAL)
-        self.P_poly = self.B_0_poly * x_exponent_poly
-        # 5.c. commit P(X)
-        self.P_comm_1 = setup.commit_g1(self.P_poly)
-        print("Commitment of P(X): ", self.P_comm_1)
-
+        alpha = self.alpha
+        tau_col_values = []
+        tau_col_poly = Polynomial(tau_col_values, Basis.LAGRANGE)
+        tau_col_at_0 = tau_col_poly.barycentric_eval(Scalar(0))
         return Message2(
-            self.A_comm_1,
-            self.Q_A_comm_1,
-            self.f_comm_1,
-            self.B_0_comm_1,
-            self.Q_B_comm_1,
-            self.P_comm_1
         )
 
     def round_3(self) -> Message3:
@@ -264,6 +204,10 @@ class Prover:
         print("Prover: a_0_comm_1: ", a_0_comm_1)
 
         return Message3(b_0_at_gamma, f_at_gamma, a_at_0, pi_gamma, a_0_comm_1)
+
+    def round_4(self) -> Message4:
+        # todo
+        return Message3()
 
     # random linear combination
     def rlc(self, term_1, term_2, term_3):
