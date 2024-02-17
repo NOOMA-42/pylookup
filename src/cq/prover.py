@@ -5,6 +5,7 @@ from src.common_util.curve import Scalar
 from src.cq.setup import *
 from src.cq.transcript import Transcript, Message1, Message2, Message3
 
+
 @dataclass
 class Proof:
     msg_1: Message1
@@ -38,13 +39,13 @@ class Prover:
     setup: Setup
     table: list
 
-    def __init__(self, setup: Setup, table: list, group_order_N: int, group_order_n: int):
+    def __init__(self, setup: Setup, table: list, group_order_n: int):
         self.setup = setup
         self.table = table
         self.t_values = [Scalar(val) for val in self.table]
-        self.group_order_N = group_order_N
+        self.group_order_N = len(table)
         self.group_order_n = group_order_n
-        self.roots_of_unity_N = Scalar.roots_of_unity(group_order_N)
+        self.roots_of_unity_N = Scalar.roots_of_unity(self.group_order_N)
         self.roots_of_unity_n = Scalar.roots_of_unity(group_order_n)
         self.powers_of_x = setup.powers_of_x
     def prove(self, witness) -> Proof:
@@ -87,6 +88,7 @@ class Prover:
         beta = self.beta
         m_values = self.m_values
         t_values = self.t_values
+        table_len = group_order_N
         # 1. commit A(X): Step 1-3 in the paper
         # 1.a. compute A_i values
         self.A_values = []
@@ -114,25 +116,49 @@ class Prover:
         self.T_poly = T_poly.ifft()
         # 2.b. vanishing polynomial: X^N - 1, N = group_order_N - 1
         ZV_array = [Scalar(-1)] + [Scalar(0)] * (group_order_N - 1) + [Scalar(1)]
-        # vanishing polynomial in coefficient form
-        ZV_poly = Polynomial(ZV_array, Basis.MONOMIAL)
         # vanishing polynomial: X^n - 1, N = group_order_n - 1
         ZH_array = [Scalar(-1)] + [Scalar(0)] * (group_order_n - 1) + [Scalar(1)]
         # vanishing polynomial in coefficient form
         ZH_poly = Polynomial(ZH_array, Basis.MONOMIAL)
 
-        # sanity check
-        for i, A_i in enumerate(self.A_values):
-            point = self.roots_of_unity_N[i]
-            a_value = self.A_poly.coeff_eval(point)
-            m_value = self.m_poly.coeff_eval(point)
-            t_value = self.T_poly.coeff_eval(point)
-            assert a_value == m_value / (beta + t_value) , "Not equal"
-        # 2.c. Q_A(X) in coefficient form
-        self.Q_A_poly = (self.A_poly * (self.T_poly + beta) - self.m_poly) / ZV_poly
-        # 2.d. commit Q_A(X)
-        self.Q_A_comm_1 = setup.commit_g1(self.Q_A_poly)
-        print("Commitment of Q_A(X): ", self.Q_A_comm_1)
+        t_poly_coeffs = self.T_poly.values
+        print("\nt_poly_coeffs: ", t_poly_coeffs)
+        print("\nsetup.powers_of_x: ", setup.powers_of_x)
+        srs = setup.powers_of_x[:len(t_poly_coeffs)]
+        print("\nsrs: ", srs)
+
+        roots = Scalar.roots_of_unity(len(self.A_values))
+        print("roots: ", roots)
+        for i in range(len(t_values)):
+            eval = self.T_poly.coeff_eval(roots[i])
+            print("=====> eval: ", eval)  # 1, 2, 3, 4
+            assert eval == t_values[i]
+
+        # Precomputation happens here with FK algorithm
+        Q_T_comm_poly_coeffs = setup.Q_T_comm_poly_coeffs
+        print("\n------> Q_T_comm_poly_coeffs: \n", Q_T_comm_poly_coeffs)
+
+        Q_A_Comm = b.Z1
+        for i in range(table_len):
+            K_T_Comm = b.Z1
+            root = Scalar(1)
+            for j in range(table_len):
+                K_T_Comm = b.add(K_T_Comm, b.multiply(
+                    Q_T_comm_poly_coeffs[j], root.n))
+                root = root * roots[i]
+            A_val = self.A_values[i].n
+            scale = roots[i]/table_len
+            # Compute Quotient polynomial commitment of T(X)
+            Q_T_Comm = b.multiply(K_T_Comm, scale.n)
+            A_times_Q_T_Comm = b.multiply(Q_T_Comm, A_val)
+            # Do the accumulation
+            Q_A_Comm = b.add(Q_A_Comm, A_times_Q_T_Comm)
+
+
+        self.Q_A_comm_1 = Q_A_Comm
+        print("\nCommitment of Q_A(X):  \n", self.Q_A_comm_1)
+
+        print(" \n*********** Finish to precomputed commitment of Q_A(X) **********")
 
         # 3. commit B_0(X): Step 5-7 in the paper
         # 3.a. compute B_0_i values
