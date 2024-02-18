@@ -102,6 +102,51 @@ The verification process is as follows:
     - To verify the commitment of $agg_2$ (denote as $comm(agg_2)$, which is $\frac{agg_2(\tau) - agg_2(g \cdot \zeta)}{\tau - g \cdot \zeta}$ for some unknown crs $\tau$), the verifier verify the pairing $e(agg_2(\tau) - agg_2(g \cdot \zeta), 1) = e(comm(agg_2), \tau - g \cdot \zeta)$
 - The verifier accepts the proof if and only if both pairing equations hold.
 
+## Implementation
+
+Here we present some worth-mentioned implementation details.
+
+### sorted\_by\_table
+
+As mentioned above, we need to combine witness $f$ and public table $t$, and sorted by the order $t$. A simple way would be sorting both $t$ and $f + t$, which is what Plonkup does. However, we implement it in a more flexible way that allows the public table to be unsorted.
+
+```python
+def sorted_by_table(self, witness: list[int], table: list[int]):
+    data = table + witness
+    index = {}
+    for i, t in enumerate(table):
+        index[t] = i
+    for w in witness:
+        assert(w in index)
+    return sorted(data, key=lambda x: index[x])
+```
+
+### Generate polynomials
+
+To generate a polynomial from the values evaluated on the roots of unity, we follow Plonkathon’s implementation (see `common_util/poly.py`), and some adjustment needs to be performed accordingly. 
+
+The first is that we want to generate the polynomial of $f$ from the array with length $n$. However, the generator $g$ is of order $n+1$, so we need to pad $f$ to length $n+1$ and make it a polynomial. If we append a random number to $f$, then the polynomial would likely to have degree $n$, not $n-1$ as required in Plookup paper. However, we think that the degree problem does not affect the security of the protocol, so we simply append the last element of $f$ and make it a polynomial of degree $n$.
+
+```python
+def round_1(self, witness: list[Scalar]) -> Message1:
+    ...
+    self.f = list(map(Scalar, witness))
+    self.f.append(self.f[-1])
+    self.f_poly = Polynomial(self.f, Basis.LAGRANGE)
+    ...
+```
+
+Second, the list of roots of unity (denote as $H$) is $[g, \ldots, g^{n+1}=1]$ in Plookup paper but $[1, \ldots, g^n]$  in Plonkathon’s implementation. So we need to be careful about the Lagrange polynomials $L_1, L_{n+1}$ and equation b. In particular, we have equation b be $(x-g^n)(\ldots)$ instead of $(x-g^{n+1})(\ldots)$.
+
+```python
+def get_poly_b(self) -> Polynomial:
+    front = Polynomial([-self.H[self.n], Scalar(1)], Basis.MONOMIAL)
+    lhs = front * ...
+    rhs = front * ...
+```
+
+Lastly, the polynomial multiplication in Plonkathon’s implementation is a little tricky. In short, sometimes we need to use `ifft()` to get correct multiplication result.
+
 ## Reference
 
 1. Plookup paper: [https://eprint.iacr.org/2020/315.pdf](https://eprint.iacr.org/2020/315.pdf)

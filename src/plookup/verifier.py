@@ -74,14 +74,14 @@ class Verifier:
         print("=== Started Check 1: evaluation on zeta ===")
         # agg(x) = aggregate(eps, [f, h1, h2, z, q])
         agg_comm = aggregate_comm(eps, [f_comm, h1_comm, h2_comm, z_comm, q_comm]) # agg(tau)
-        agg_eval = aggregate(eps, [f_eval, h1_eval, h2_eval, z_eval, q_eval])     # agg(zeta)
+        agg_eval = aggregate(eps, [f_eval, h1_eval, h2_eval, z_eval, q_eval])      # agg(zeta)
         self.check_pairing(agg_comm, agg_eval, agg_witness_comm, zeta)
         print("=== Finished Check 1: evaluation on zeta ===")
 
         print("=== Started Check 2: evaluation on g*zeta ===")
         # agg_g(x) = aggregate(eps, [h1, h2, z])
         agg_g_comm = aggregate_comm(eps, [h1_comm, h2_comm, z_comm])   # agg_g(tau)
-        agg_g_eval = aggregate(eps, [h1_g_eval, h2_g_eval, z_g_eval]) # agg_g(g*zeta)
+        agg_g_eval = aggregate(eps, [h1_g_eval, h2_g_eval, z_g_eval])  # agg_g(g*zeta)
         self.check_pairing(agg_g_comm, agg_g_eval, agg_g_witness_comm, g*zeta)
         print("=== Finished Check 2: evaluation on g*zeta ===")
 
