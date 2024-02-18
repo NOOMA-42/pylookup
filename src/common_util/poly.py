@@ -151,6 +151,22 @@ class Polynomial:
                     self.basis,
                 )
 
+    def __pow__(self, exponent):
+        assert isinstance(exponent, int) and exponent >= 0, "Exponent must be a non-negative integer"
+        
+        # Handle the simple cases
+        if exponent == 0:
+            # Any polynomial to the power of 0 is 1 (in monomial basis for simplicity)
+            return Polynomial([Scalar(1)], Basis.MONOMIAL)
+        elif exponent == 1:
+            return self
+        else:
+            # Repeated multiplication for exponentiation
+            result = self
+            for _ in range(exponent - 1):
+                result = result * self
+            return result
+
     def div_with_remainder(self, other):
         assert isinstance(other, Polynomial)
         assert self.basis == other.basis
