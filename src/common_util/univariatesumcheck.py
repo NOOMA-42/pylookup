@@ -137,12 +137,11 @@ def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_
     
     #phi_alpha = phi_x.barycentric_eval(alpha)
     phi_alpha = phi_x.coeff_eval(alpha) # FIXME: root of unity might need to be rotated
-    """ if D_x.basis == Basis.MONOMIAL:
-        D_x = D_x.fft()  """
-    Q2_X, XR_X = ((D_x * t_x - phi_alpha)).div_with_remainder(zI_x)    
-    R_X = XR_X / Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
+    Q2_x, XR_x = ((D_x * t_x - phi_alpha)).div_with_remainder(zI_x)    
+    x = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
+    R_x = XR_x / x
 
-    R_hat_x = Polynomial(Scalar(x) ** (N - m + 2))
+    R_hat_x = x ** (N - m + 2)
     D = setup.commit_g2(D_x)
     R = setup.commit_g1(R_x)
     R_hat = setup.commit_g1(R_hat_x)

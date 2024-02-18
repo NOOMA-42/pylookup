@@ -104,7 +104,8 @@ class UnivariateSumcheckTest(unittest.TestCase):
         phi_x = sum([lagrange_basis(i, V) * Scalar(e) for i, e in enumerate([3, 2, 3])], zero_polynomial)
         zI_x = construct_non_multiplicativegroup_vanishing_poly(H_I)
 
-        setup = Setup.execute(2, 2, [1, 2], False) # TODO: check arguments
+        # The largest exponent is R_hat with exponent 4 in this test
+        setup = Setup.execute(4, 2, [1, 2], False) # FIXME: modify generate_srs and use it instead
         pi2 = univariate_sumcheck_prove(setup, Dx, t_x, phi_x, zI_x, alpha, N, m)
 
 
