@@ -72,25 +72,25 @@ class Prover:
 
     """
     table = [1, 2, 3, 4, 5, 6, 7, 8]
-    witness = [3, 1, 2, 1]
-    t:  [1, 2, 3] # choose non-duplicated elements from witness
-    I:  [0, 1, 2] # get indexes from table
+    witness = [3, 7, 2, 7]
+    t:  [2, 3, 7] # choose non-duplicated elements from witness
+    I:  [1, 2, 6] # get indexes from table
     k = len(I) = 3
     vanishing polynomial z_I(X) = (X - I_0)(X - I_1)(X - I_2)
                                 = (X - 0)(X - 1)(X - 2)
     M * t = witness
     M = [
+        [1, 0, 0],
         [0, 0, 1],
         [1, 0, 0],
         [0, 1, 0],
-        [1, 0, 0],
     ]
     m = len(witness) # 4
     col[0] = M[0].index(1)
     col[1] = M[1].index(1)
     col[2] = M[2].index(1)
     col[3] = M[3].index(1)
-    col: [2, 0, 1, 0]
+    col: [1, 2, 0, 2]
     v_values[0] = 1 / xi_values[col[0]]
     v_values[1] = 1 / xi_values[col[1]]
     v_values[2] = 1 / xi_values[col[2]]
