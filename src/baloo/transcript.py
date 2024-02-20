@@ -14,30 +14,14 @@ class Message1:
 @dataclass
 class Message2:
     # Commitments in G1
-    A_comm_1: G1Point
-    Q_A_comm_1: G1Point
-    f_comm_1: G1Point
-    B_0_comm_1: G1Point
-    Q_B_comm_1: G1Point
-    P_comm_1: G1Point
+    D_comm_1: G1Point
+    R_comm_1: G1Point
+    Q2_comm_1: G1Point
 
 @dataclass
 class Message3:
     # Commitments in G1
-    b_0_at_gamma: G1Point
-    f_at_gamma: G1Point
-    a_at_0: G1Point
-    pi_gamma: G1Point
-    a_0_comm_1: G1Point
-
-@dataclass
-class Message4:
-    # Commitments in G1
-    b_0_at_gamma: G1Point
-    f_at_gamma: G1Point
-    a_at_0: G1Point
-    pi_gamma: G1Point
-    a_0_comm_1: G1Point
+    a_comm_1: G1Point
 
 # https://merlin.cool/
 class Transcript(MerlinTranscript):
@@ -60,28 +44,18 @@ class Transcript(MerlinTranscript):
                 return f
 
     def round_1(self, message: Message1) -> tuple[Scalar]:
-        self.append_point(b"t_comm_1", message.t_comm_1)
         self.append_point(b"v_comm_1", message.v_comm_1)
+        self.append_point(b"t_comm_1", message.t_comm_1)
 
         alpha = self.get_and_append_challenge(b"alpha")
-
-        return alpha
-
-    def round_2(self, message: Message2) -> tuple[Scalar]:
-        self.append_point(b"t_comm_1", message.t_comm_1)
-        self.append_point(b"v_comm_1", message.v_comm_1)
-
         beta = self.get_and_append_challenge(b"beta")
 
-        return beta
+        return alpha, beta
 
-    def round_3(self, message: Message3) -> tuple[Scalar, Scalar]:
-        self.append_point(b"A_comm_1", message.A_comm_1)
-        self.append_point(b"Q_A_comm_1", message.Q_A_comm_1)
-        self.append_point(b"f_comm_1", message.f_comm_1)
-        self.append_point(b"B_0_comm_1", message.B_0_comm_1)
-        self.append_point(b"Q_B_comm_1", message.Q_B_comm_1)
-        self.append_point(b"P_comm_1", message.P_comm_1)
+    def round_2(self, message: Message2) -> tuple[Scalar, Scalar]:
+        self.append_point(b"D_comm_1", message.D_comm_1)
+        self.append_point(b"R_comm_1", message.R_comm_1)
+        self.append_point(b"Q2_comm_1", message.Q2_comm_1)
 
         rho = self.get_and_append_challenge(b"rho")
         gamma = self.get_and_append_challenge(b"gamma")

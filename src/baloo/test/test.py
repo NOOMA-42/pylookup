@@ -33,7 +33,7 @@ def simple_test():
     # public table
     table = [1, 2, 3, 4, 5, 6, 7, 8]
     # values to lookup
-    witness = [3, 7, 2, 7]
+    witness = [3, 7, 3, 4]
 
     group_order_N = len(table)
     group_order_n = len(witness)

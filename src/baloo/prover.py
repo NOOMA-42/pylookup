@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 import numpy as np
-from src.common_util.poly import Polynomial, Basis
+from src.common_util.poly import Polynomial, Basis, InterpolationPoly
 from src.common_util.curve import Scalar
 from src.baloo.setup import *
-from src.baloo.transcript import Transcript, Message1, Message2, Message3, Message4
+from src.baloo.transcript import Transcript, Message1, Message2, Message3
 
 
 @dataclass
@@ -11,7 +11,6 @@ class Proof:
     msg_1: Message1
     msg_2: Message2
     msg_3: Message3
-    msg_4: Message4
 
     def flatten(self):
         proof = {}
@@ -56,28 +55,29 @@ class Prover:
 
         # Round 1
         msg_1 = self.round_1(witness)
-        self.alpha = transcript.round_1(msg_1)
+        self.alpha, self.beta = transcript.round_1(msg_1)
 
         # Round 2
         msg_2 = self.round_2()
-        self.beta = transcript.round_2(msg_2)
+        self.rho, self.gamma = transcript.round_2(msg_2)
 
         # Round 3
         msg_3 = self.round_3()
-        self.rho, self.gamma = transcript.round_3(msg_3)
 
-        msg_4 = self.round_4()
-
-        return Proof(msg_1, msg_2, msg_3, msg_4)
+        return Proof(msg_1, msg_2, msg_3)
 
     """
+    H = [1, ω, ω^2, ω^3, ω^4, ω^5, ω^6, ω^7]
     table = [1, 2, 3, 4, 5, 6, 7, 8]
-    witness = [3, 7, 2, 7]
-    t:  [2, 3, 7] # choose non-duplicated elements from witness
-    I:  [1, 2, 6] # get indexes from table
+    witness = [3, 7, 3, 4]
+    t_I:  [3, 4, 7] # choose non-duplicated elements from witness
+    I:  [2, 3, 6] # get indexes from table
+    s ∈ I = [2, 3, 6]
+    H_I = {ω^s} = [ω^2, ω^3, ω^6]
     k = len(I) = 3
-    vanishing polynomial z_I(X) = (X - I_0)(X - I_1)(X - I_2)
-                                = (X - 0)(X - 1)(X - 2)
+    vanishing polynomial z_I(X) = (X - H_I_0)(X - H_I_1)(X - H_I_2)
+                                = (X - ω^2)(X - ω^3)(X - ω^6)
+
     M * t = witness
     M = [
         [1, 0, 0],
@@ -90,11 +90,13 @@ class Prover:
     col[1] = M[1].index(1)
     col[2] = M[2].index(1)
     col[3] = M[3].index(1)
-    col: [1, 2, 0, 2]
-    v_values[0] = 1 / xi_values[col[0]]
-    v_values[1] = 1 / xi_values[col[1]]
-    v_values[2] = 1 / xi_values[col[2]]
-    v_values[3] = 1 / xi_values[col[3]]
+    col: [0, 2, 0, 1]
+    ξ(xi): xi = root_of_unity ** col_i
+    get v(X)) values
+    v_values[0] = 1 / H_I[col[0]]
+    v_values[1] = 1 / H_I[col[1]]
+    v_values[2] = 1 / H_I[col[2]]
+    v_values[3] = 1 / H_I[col[3]]
     """
     # Output π1 = [z_I]_2 = [z_I(x)]_2, [v]_1 = [v(x)]_1, t = [t(x)]_1
     def round_1(self, witness) -> Message1:
@@ -111,44 +113,50 @@ class Prover:
         t_values = list(set(witness))
         # transform to Scalar
         t_values = [Scalar(elem) for elem in t_values]
+        self.t_values = t_values
         print("t: ", t_values)
-        # I: the index of t_values elements in public table
+        # I: the index of t_values elements in sub table t_I
         I_values = [Scalar(self.table.index(elem)) for elem in t_values]
         print("I: ", I_values)
-
         k = len(I_values)
-        # vanishing polynomial in coefficient form
-        z_I_poly = Polynomial([Scalar(1)], Basis.MONOMIAL)
+        m = len(witness)
+        N = self.group_order_N
+        # H_I = {ξ_i} , i = [1, k], ξ(Xi)
+        roots_of_unity = Scalar.roots_of_unity(N)
+        H_I = [roots_of_unity[i.n] for i in I_values]  # len(H_I) = k
+        self.H_I = H_I
+        print("H_I: ", H_I)
+        H_I_interp_poly = InterpolationPoly(H_I, t_values)
+
         # multiple all root polynomial: (X - I_0)(X - I_1)(X - I_2)...
-        for i in range(k):
-            z_I_poly = z_I_poly * Polynomial(
-                [-I_values[i], Scalar(1)], Basis.MONOMIAL)
+        col_values = []
+        v_values = []
+        for i in range(m):
+            # find the index of 1 in jth row of M
+            col_i = t_values.index(witness[i])
+            col_values.append(col_i)
+            col_i_root = H_I[col_i]
+            # todo: v = col_i_root ??
+            v = 1 / col_i_root
+            v_values.append(v)
+
+        # vanishing polynomial in coefficient form
+        z_I_poly = H_I_interp_poly.vanishing_poly()
+
         print("z_I_poly.values: ", z_I_poly.values)
         self.z_I_poly = z_I_poly
 
-        root_of_unity = Scalar.root_of_unity(k)
-        m = len(witness)  # 4
-        col_values = []
-        v_values = []
-        xi_values = []
-        for i in range(m):
-            col_i = t_values.index(witness[i])  # find the index of 1 in jth row of M
-            col_values.append(col_i)
-            # ξ（Xi）
-            xi = root_of_unity ** col_i
-            xi_values.append(xi)
-            v = 1 / xi
-            v_values.append(v)
-        # ξ（Xi）
-        print("xi_values: ", xi_values)
         print("col_values: ", col_values)
+        self.col = col_values
         assert np.array_equal([t_values[elem] for elem in col_values], witness)
         print("v_values: ", v_values)
         v_poly = Polynomial(v_values, Basis.LAGRANGE)
-        t_poly = Polynomial(t_values, Basis.LAGRANGE)
+        # refer to section 5. can not use FFT due to it's not in multiplicative subgroup
+        t_interp_poly = InterpolationPoly(H_I, t_values)
+        self.t_interp_poly = t_interp_poly
+        self.t_poly = t_interp_poly.poly()
 
         self.v_poly = v_poly.ifft()
-        self.t_poly = t_poly.ifft()
 
         # commit
         self.z_I_comm_2 = setup.commit_g2(self.z_I_poly)
@@ -162,52 +170,111 @@ class Prover:
 
     def round_2(self) -> Message2:
         setup = self.setup
-        alpha = self.alpha
-        tau_col_values = []
-        tau_col_poly = Polynomial(tau_col_values, Basis.LAGRANGE)
-        tau_col_at_0 = tau_col_poly.barycentric_eval(Scalar(0))
+        # alpha = self.alpha
+        beta = self.beta
+        t_values = self.t_values
+        z_I_poly = self.z_I_poly
+        t_poly = self.t_poly
+        t_interp_poly = self.t_interp_poly
+        phi_poly = self.phi_poly
+        col = self.col
+        H_I = self.H_I
+        m = self.group_order_n
+        zero_poly = Polynomial([Scalar(0)], Basis.MONOMIAL)
+
+        """
+        Calculate μ_i(X), i = [0, m - 1], V is a multiplicative subgroup
+        col_i = col[i]
+        v_i = V[i], v_col_i = V[col_i]
+        μ_i(X) = z_V(X) / (z_V'(v_i) * (X - v_i)) = v_i / m * (X^m - 1) / (X - v_i)
+
+        Calculate Normalized Lagrange Polynomial: τ_col(i)(X) / τ_col(i)(0):
+        ξ_{col(i)}: h_i = H_I[col_i]
+        normalized_lag_poly = τ_col(i)(X) / τ_col(i)(0)
+                            = z_I(X) / z_I(0) * (-ξ_{col(i)}) / (X - ξ_{col(i)})
+
+        Calculate R(X): Theorem 5 (Inner Product Polynomial Relation) on Baloo paper
+        root = H_I[col_i]
+        a_i = μ_i(α)
+        b_i = t_I(root)
+        τ_hat_poly_at_root = normalized_lag_poly(root)
+        R(X) = Σ_i(a_i * b_i * τ_hat_poly_at_root) - Σ_i(a_i * b_i)
+
+        σ = Σ_i(a_i * b_i)
+        assert σ == φ(α)
+        """
+
+        V = Scalar.roots_of_unity(m)
+        # todo
+        alpha = V[0] # sample the first row
+        z_V_values = [Scalar(-1)] + [Scalar(0)] * (m - 1) + [Scalar(1)]
+        z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
+        # μ_i(X)
+        mu_poly_list: list[Polynomial] = []
+        z_I_at_0 = z_I_poly.coeff_eval(Scalar(0))
+        print("z_I_at_0: ", z_I_at_0, -z_I_at_0)
+        # calculate D(X) = Σ_{0, m-1} μ_i(α) * τ^_{col(i)}(X)
+        D_poly = zero_poly
+
+        H_I_interp_poly = InterpolationPoly(H_I, t_values)
+
+        d_t_sum_poly = zero_poly
+        sum = Scalar(0)
+        for i in range(m):
+            col_i = col[i]
+            v_i = V[i]
+            v_i_poly = Polynomial([-Scalar(v_i), Scalar(1)], Basis.MONOMIAL)
+            mu_poly: Polynomial = z_V_poly / v_i_poly * v_i / Scalar(m)
+            mu_poly_list.append(mu_poly)
+
+            # ξ_i
+            root = H_I[col_i]
+            # X - ξ_i
+            root_poly = H_I_interp_poly.root_poly(root)
+            # Normalized Lagrange Polynomial: τ_col(i)(X) / τ_col(i)(0)
+            normalized_lag_poly = z_I_poly / root_poly * (-root) / z_I_at_0
+
+            mu_poly_at_alpha = mu_poly.coeff_eval(alpha)
+            print("mu_poly_at_alpha: ", alpha, mu_poly_at_alpha)
+            d_i_poly = normalized_lag_poly * mu_poly_at_alpha
+            D_poly += d_i_poly
+
+            a_i = mu_poly_at_alpha
+            b_i = t_poly.coeff_eval(root)
+            print("a_i: ", a_i, -a_i)
+            print("b_i: ", b_i, -b_i)
+            sum_accu = a_i * b_i
+            sum += sum_accu
+            poly_accu = normalized_lag_poly * sum_accu
+            d_t_sum_poly += poly_accu
+        print("D_poly.values: ", D_poly.values)
+        D_t_poly = D_poly * t_poly
+        print("D_t_poly.values: ", D_t_poly.values)
+        print("sum: ", sum)
+        assert sum == phi_poly.coeff_eval(alpha), "should equal for sum == constant_term"
+        R_poly = d_t_sum_poly - sum
+
+        # Compute commitment:
+        # π2 = ([D]1 = [D(x)]1, [R]1 = [R(x)]1, [Q2]1 = [Q2(x)]1)
+        Q2_poly = (D_t_poly - sum - R_poly) / z_I_poly
+
+        D_comm_1 = setup.commit_g1(D_poly)
+        R_comm_1 = setup.commit_g1(R_poly)
+        Q2_comm_1 = setup.commit_g1(Q2_poly)
         return Message2(
+            D_comm_1, R_comm_1, Q2_comm_1
         )
 
     def round_3(self) -> Message3:
-        # 1. V sends random γ,η ∈ F.: Step 1 in the paper
         setup = self.setup
         beta = self.beta
         gamma = self.gamma
         group_order_N = self.group_order_N
         group_order_n = self.group_order_n
 
-        # 2. compute b_0_at_gamma: Step 2 in the paper
-        b_0_at_gamma = self.B_0_poly.coeff_eval(gamma)
-        # compute f_at_gamma
-        f_at_gamma = self.f_poly.coeff_eval(gamma)
-        # 3. compute a_at_0: Step 3 in the paper
-        a_at_0 = self.A_poly.coeff_eval(Scalar(0))
-        # 4. compute b_at_0: Step 4 in the paper
-        b_at_0 = group_order_N * a_at_0 / group_order_n
-        # 5. compute b_at_gamma, and Q_b_at_gamma: Step 5 in the paper
-        Z_H_at_gamma = gamma ** group_order_n - 1
-        b_at_gamma = b_0_at_gamma * gamma + b_at_0
-        Q_b_at_gamma = (b_at_gamma * (f_at_gamma + beta) - Scalar(1)) / Z_H_at_gamma
+        return Message3(
 
-        # 6. batch KZG check: Step 6 in the paper
-        # (a) both P and V compute v
-        v = self.rlc(b_0_at_gamma, f_at_gamma, Q_b_at_gamma)
-        # (b) compute commitment: pi_gamma = [h(X)]_1
-        h_poly = (self.rlc(self.B_0_poly, self.f_poly, self.Q_B_poly) - v) / (self.x_poly - gamma)
-        pi_gamma = setup.commit_g1(h_poly)
-
-        # 3.7 commit A_0(X): Step 7 in the paper
-        # (a) compute a_0_comm_1
-        a_0_poly = (self.A_poly - a_at_0) / self.x_poly
-        a_0_comm_1 = setup.commit_g1(a_0_poly)
-        print("Prover: a_0_comm_1: ", a_0_comm_1)
-
-        return Message3(b_0_at_gamma, f_at_gamma, a_at_0, pi_gamma, a_0_comm_1)
-
-    def round_4(self) -> Message4:
-        # todo
-        return Message3()
+        )
 
     # random linear combination
     def rlc(self, term_1, term_2, term_3):

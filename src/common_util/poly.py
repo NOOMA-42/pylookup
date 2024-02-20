@@ -270,7 +270,7 @@ class InterpolationPoly:
         return v_diff_poly
 
     # Give i, return ith Lagrange polynomial L_i(X)
-    # L_i(X) = z_H(X) / z_H'(ω^i) / (X - ω^i)
+    # L_i(X) = z_H(X) / z_H'(a_i) / (X - a_i)
     def lagrange_poly(self, i: int):
         v_poly = self.vanishing_poly()
         v_diff_poly = self.vanishing_poly_diff()
