@@ -17,6 +17,8 @@ def poly_test():
       coeff_eval = poly_coeff.coeff_eval(point)
       assert eval_lag == coeff_eval
 
+    quo = poly_coeff / Scalar(2)
+    print("quo: ", quo.values)
 if __name__ == "__main__":
     print("===========> Beginning test <===========")
     poly_test()

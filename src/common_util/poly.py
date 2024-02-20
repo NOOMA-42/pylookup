@@ -144,9 +144,9 @@ class Polynomial:
             if (self.basis == Basis.MONOMIAL):
                 c1 = self.values
                 c2 = [other]
-                res = P.polydiv(c1,c2)
+                quo, _ = P.polydiv(c1,c2)
                 return Polynomial(
-                    res,
+                    quo,
                     self.basis,
                 )
 
