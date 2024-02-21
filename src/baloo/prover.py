@@ -161,10 +161,12 @@ class Prover:
         self.z_I_comm_2 = setup.commit_g2(self.z_I_poly)
         self.v_comm_1 = setup.commit_g1(self.v_poly)
         self.t_comm_1 = setup.commit_g1(self.t_poly)
-        print("self.z_I_comm_2: ", self.z_I_comm_2)
-        print("self.v_comm_1: ", self.v_comm_1)
-        print("self.t_comm_1: ", self.t_comm_1)
-        return Message1(self.z_I_comm_2, self.v_comm_1, self.t_comm_1)
+
+        return Message1(
+            self.z_I_comm_2,
+            self.v_comm_1,
+            self.t_comm_1
+        )
 
     """
     Calculate μ_i(X), i = [0, m - 1], V is a multiplicative subgroup
@@ -276,8 +278,13 @@ class Prover:
         Q_D_comm_1 = setup.commit_g1(Q_D_poly)
         E_comm_1 = setup.commit_g1(E_poly)
         Q_E_comm_1 = setup.commit_g1(Q_E_poly)
+
         return Message2(
-            D_comm_1, R_comm_1, Q_D_comm_1, E_comm_1, Q_E_comm_1
+            D_comm_1,
+            R_comm_1,
+            Q_D_comm_1,
+            E_comm_1,
+            Q_E_comm_1
         )
 
     def round_3(self) -> Message3:
@@ -287,6 +294,7 @@ class Prover:
         zeta = self.zeta
 
         a_comm_1 = setup.powers_of_x[0]
+
         return Message3(
             a_comm_1
         )
