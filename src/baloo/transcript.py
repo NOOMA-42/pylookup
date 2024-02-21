@@ -23,7 +23,15 @@ class Message2:
 @dataclass
 class Message3:
     # Commitments in G1
-    a_comm_1: G1Point
+    v1: Scalar
+    v2: Scalar
+    v3: Scalar
+    v4: Scalar
+    v5: Scalar
+    w1_comm_1: G1Point
+    w2_comm_1: G1Point
+    w3_comm_1: G1Point
+    w4_comm_1: G1Point
 
 # https://merlin.cool/
 class Transcript(MerlinTranscript):

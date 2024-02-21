@@ -234,6 +234,15 @@ class Polynomial:
             result = result + coeffs[i] * x_pow
         return result
 
+
+# f(X) = X - a
+def root_poly(x_val: Scalar) -> Polynomial:
+    return Polynomial([-x_val, Scalar(1)], Basis.MONOMIAL)
+
+# f(X) = a
+def const_poly(x_val: Scalar) -> Polynomial:
+    return Polynomial([x_val], Basis.MONOMIAL)
+
 # construct MONOMIAL Polynomial with any X and Y values
 # Note: do not use with FFT due to X is probably not multiplicative subgroup
 class InterpolationPoly:
@@ -246,27 +255,19 @@ class InterpolationPoly:
         self.X = np.array(X)
         self.Y = np.array(Y)
 
-    # f(X) = X - a
-    def root_poly(self, x_val: Scalar) -> Polynomial:
-        return Polynomial([-x_val, Scalar(1)], Basis.MONOMIAL)
-
-    # f(X) = a
-    def const_poly(self, x_val: Scalar) -> Polynomial:
-        return Polynomial([x_val], Basis.MONOMIAL)
-
     # z_H(X) = (X - self.X[0])(X - self.X[1])(X - self.X[2])...
     def vanishing_poly(self) -> Polynomial:
-        v_poly = self.const_poly(Scalar(1))
+        v_poly = const_poly(Scalar(1))
         for i in range(self.n):
-            v_poly *= self.root_poly(self.X[i])
+            v_poly *= root_poly(self.X[i])
         return v_poly
 
     # compute the derivative
     def vanishing_poly_diff(self) -> Polynomial:
         v_poly = self.vanishing_poly()
-        v_diff_poly = self.const_poly(Scalar(0))
+        v_diff_poly = const_poly(Scalar(0))
         for i in range(self.n):
-            v_diff_poly += v_poly / self.root_poly(self.X[i])
+            v_diff_poly += v_poly / root_poly(self.X[i])
         return v_diff_poly
 
     # Give i, return ith Lagrange polynomial L_i(X)
@@ -276,12 +277,12 @@ class InterpolationPoly:
         v_diff_poly = self.vanishing_poly_diff()
         x_val = self.X[i]
         v_diff_poly_at_i = v_diff_poly.coeff_eval(x_val)
-        root_poly = self.root_poly(x_val)
-        return v_poly / root_poly / v_diff_poly_at_i
+        x_root_poly = root_poly(x_val)
+        return v_poly / x_root_poly / v_diff_poly_at_i
 
     # f(X) = Σ(L_i(X) * y_i)
     def poly(self) -> Polynomial:
-        poly = self.const_poly(Scalar(0))
+        poly = const_poly(Scalar(0))
         for i in range(self.n):
             lagrange_poly = self.lagrange_poly(i)
             poly += lagrange_poly * self.Y[i]

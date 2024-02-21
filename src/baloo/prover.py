@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 import numpy as np
-from src.common_util.poly import Polynomial, Basis, InterpolationPoly
+from src.common_util.poly import Polynomial, Basis, InterpolationPoly, root_poly
 from src.common_util.curve import Scalar
 from src.baloo.setup import *
 from src.baloo.transcript import Transcript, Message1, Message2, Message3
-
 
 @dataclass
 class Proof:
@@ -15,20 +14,25 @@ class Proof:
     def flatten(self):
         proof = {}
         # msg_1
-        proof["phi_comm_1"] = self.msg_1.phi_comm_1
+        proof["z_I_comm_2"] = self.msg_1.z_I_comm_2
+        proof["v_comm_1"] = self.msg_1.v_comm_1
+        proof["t_comm_1"] = self.msg_1.t_comm_1
         # msg_2
-        proof["A_comm_1"] = self.msg_2.A_comm_1
-        proof["Q_A_comm_1"] = self.msg_2.Q_A_comm_1
-        proof["f_comm_1"] = self.msg_2.f_comm_1
-        proof["B_0_comm_1"] = self.msg_2.B_0_comm_1
-        proof["Q_B_comm_1"] = self.msg_2.Q_B_comm_1
-        proof["P_comm_1"] = self.msg_2.P_comm_1
+        proof["D_comm_1"] = self.msg_2.D_comm_1
+        proof["R_comm_1"] = self.msg_2.R_comm_1
+        proof["Q_D_comm_1"] = self.msg_2.Q_D_comm_1
+        proof["E_comm_1"] = self.msg_2.E_comm_1
+        proof["Q_E_comm_1"] = self.msg_2.Q_E_comm_1
         # msg_3
-        proof["b_0_at_gamma"] = self.msg_3.b_0_at_gamma
-        proof["f_at_gamma"] = self.msg_3.f_at_gamma
-        proof["a_at_0"] = self.msg_3.a_at_0
-        proof["pi_gamma"] = self.msg_3.pi_gamma
-        proof["a_0_comm_1"] = self.msg_3.a_0_comm_1
+        proof["v1"] = self.msg_3.v1
+        proof["v2"] = self.msg_3.v2
+        proof["v3"] = self.msg_3.v3
+        proof["v4"] = self.msg_3.v4
+        proof["v5"] = self.msg_3.v5
+        proof["w1_comm_1"] = self.msg_3.w1_comm_1
+        proof["w2_comm_1"] = self.msg_3.w2_comm_1
+        proof["w3_comm_1"] = self.msg_3.w3_comm_1
+        proof["w4_comm_1"] = self.msg_3.w4_comm_1
 
         return proof
 
@@ -246,11 +250,12 @@ class Prover:
             # ξ_i
             root = H_I[col_i]
             # X - ξ_i
-            root_poly = H_I_interp_poly.root_poly(root)
+            x_root_poly = root_poly(root)
             # Lagrange polynomial on V: μ_i(X)
             mu_poly = z_V_poly / v_root_poly * v_root / Scalar(m)
             # Normalized Lagrange Polynomial: τ_col(i)(X) / τ_col(i)(0)
-            normalized_lag_poly: Polynomial = z_I_poly / root_poly * (-root) / z_I_at_0
+            normalized_lag_poly: Polynomial = z_I_poly / \
+                x_root_poly * (-root) / z_I_at_0
             # μ_i(α)
             mu_poly_at_alpha = mu_poly.coeff_eval(alpha)
             normalized_lag_poly_at_beta = normalized_lag_poly.coeff_eval(beta)
@@ -284,6 +289,13 @@ class Prover:
         Q_E_poly = (E_poly * (v_poly * Scalar(-1) + beta) +
                     v_poly * z_I_at_beta / z_I_at_0) / z_V_poly
 
+        self.z_V_poly = z_V_poly
+        self.D_poly = D_poly
+        self.E_poly = E_poly
+        self.R_poly = R_poly
+        self.Q_D_poly = Q_D_poly
+        self.Q_E_poly = Q_E_poly
+
         # π2 = ([D]1 = [D(x)]1, [R]1 = [R(x)]1, [Q2]1 = [Q2(x)]1)
         # π3 = ([E]1 = [E(x)]1, [Q1]1 = [Q1(x)]1)
         R_comm_1 = setup.commit_g1(R_poly)
@@ -302,16 +314,91 @@ class Prover:
 
     def round_3(self) -> Message3:
         setup = self.setup
+        alpha = self.alpha
+        beta = self.beta
         rho = self.rho
         gamma = self.gamma
         zeta = self.zeta
+        phi_poly = self.phi_poly
+        z_I_poly = self.z_I_poly
+        t_poly = self.t_poly
+        v_poly = self.v_poly
+        z_V_poly = self.z_V_poly
+        D_poly = self.D_poly
+        E_poly = self.E_poly
+        R_poly = self.R_poly
+        Q_D_poly = self.Q_D_poly
+        Q_E_poly = self.Q_E_poly
+        d = len(self.powers_of_x) - 1
+        m = self.group_order_n
 
-        a_comm_1 = setup.powers_of_x[0]
+        # calculate v1, v2, v3, v4, v5
+        # v1 = e(α)
+        v1 = E_poly.coeff_eval(alpha)
+        # v2 = a(α)
+        v2 = phi_poly.coeff_eval(alpha)
+        # v3 = z_I(0)
+        v3 = z_I_poly.coeff_eval(Scalar(0))
+        # v4 = z_I(β)
+        v4 = z_I_poly.coeff_eval(beta)
+        # v5 = e(ζ)
+        v5 = E_poly.coeff_eval(zeta)
+        # calculate P_D(X), P_E(X)
+        # P_D(X) = D(β) * t_I(X) - φ(α) - R(X) - z_I(β) * Q_D(X)
+        # P_E(X) = E(ζ) * (β - v(X)) + v(X) * z_I(β) / z_I(0) - z_V(ζ) * Q_E(X)
+        D_poly_at_beta = D_poly.coeff_eval(beta)
+        P_D_poly = t_poly * D_poly_at_beta - v2 - R_poly - Q_D_poly * v4
+        E_poly_at_zeta = E_poly.coeff_eval(zeta)
+        z_V_poly_at_zeta = z_V_poly.coeff_eval(zeta)
+        P_E_poly = (v_poly * Scalar(-1) + beta) * E_poly_at_zeta + \
+            v_poly * v4 / v3 - Q_E_poly * z_V_poly_at_zeta
+
+        # X^(d-m+1)
+        x_exponent_values = [Scalar(0)] * (d - m) + [Scalar(1)]
+        x_exponent_poly = Polynomial(x_exponent_values, Basis.MONOMIAL)
+        # calculate [w1]1, [w2]1, [w2]1, [w4]1
+        # X - α
+        x_alpha_poly = root_poly(Scalar(alpha))
+        # calculate w1
+        w1_poly = x_exponent_poly * \
+            (E_poly - v1 + (phi_poly - v2) * gamma) / x_alpha_poly
+        x_poly = root_poly(Scalar(0))
+        x_m_exponent_poly = Polynomial([Scalar(0)] * m + [Scalar(1)], Basis.MONOMIAL)
+        # calculate w2
+        w2_poly = (z_I_poly - v3) / x_poly + R_poly * gamma / x_poly + \
+            x_exponent_poly * (
+                (z_I_poly - x_m_exponent_poly) * gamma ** 2 +
+                R_poly * gamma ** 3
+            )
+        # X - β
+        x_beta_poly = root_poly(Scalar(beta))
+        # calculate w3
+        w3_poly = (D_poly - v1) / x_beta_poly + \
+            (z_I_poly - v4) * gamma / x_beta_poly + \
+            P_D_poly * gamma ** 2 / x_beta_poly
+        # X - ζ
+        x_zeta_poly = root_poly(Scalar(zeta))
+        # calculate w4
+        w4_poly = (E_poly - v5) / x_zeta_poly + \
+            P_E_poly * gamma / x_zeta_poly
+
+        w1_comm_1 = setup.commit_g1(w1_poly)
+        w2_comm_1 = setup.commit_g1(w2_poly)
+        w3_comm_1 = setup.commit_g1(w3_poly)
+        w4_comm_1 = setup.commit_g1(w4_poly)
 
         return Message3(
-            a_comm_1
+            v1,
+            v2,
+            v3,
+            v4,
+            v5,
+            w1_comm_1,
+            w2_comm_1,
+            w3_comm_1,
+            w4_comm_1,
         )
 
     # random linear combination
     def rlc(self, term_1, term_2, term_3):
-        return term_1 + term_2 * self.eta + term_3 * self.eta * self.eta
+        return term_1 + term_2 * self.gamma + term_3 * self.gamma * self.gamma
