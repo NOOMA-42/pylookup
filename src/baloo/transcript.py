@@ -16,7 +16,9 @@ class Message2:
     # Commitments in G1
     D_comm_1: G1Point
     R_comm_1: G1Point
-    Q2_comm_1: G1Point
+    Q_D_comm_1: G1Point
+    E_comm_1: G1Point
+    Q_E_comm_1: G1Point
 
 @dataclass
 class Message3:
@@ -53,9 +55,11 @@ class Transcript(MerlinTranscript):
         return alpha, beta
 
     def round_2(self, message: Message2) -> tuple[Scalar, Scalar]:
-        self.append_point(b"D_comm_1", message.D_comm_1)
         self.append_point(b"R_comm_1", message.R_comm_1)
-        self.append_point(b"Q2_comm_1", message.Q2_comm_1)
+        self.append_point(b"D_comm_1", message.D_comm_1)
+        self.append_point(b"Q_D_comm_1", message.Q_D_comm_1)
+        self.append_point(b"E_comm_1", message.E_comm_1)
+        self.append_point(b"Q_E_comm_1", message.Q_E_comm_1)
 
         rho = self.get_and_append_challenge(b"rho")
         gamma = self.get_and_append_challenge(b"gamma")
