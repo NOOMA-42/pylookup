@@ -117,7 +117,6 @@ class Prover:
         # I: the index of t_values elements in sub table t_I
         I_values = [Scalar(self.table.index(elem)) for elem in t_values]
         print("I: ", I_values)
-        k = len(I_values)
         m = len(lookup)
         N = self.group_order_N
         # H_I = {ξ_i} , i = [1, k], ξ(Xi)
@@ -135,8 +134,9 @@ class Prover:
             col_i = t_values.index(lookup[i])
             col_values.append(col_i)
             col_i_root = H_I[col_i]
-            # todo: v = col_i_root ??
-            v = 1 / col_i_root
+            # Note: v = 1 / col_i_root in paper
+            # Here we use different construction that does not affect the verification
+            v = col_i_root
             v_values.append(v)
 
         # vanishing polynomial in coefficient form
@@ -193,14 +193,27 @@ class Prover:
     Calculate Q_D(X), Q_E(X)
     D(X) = Σ_i(μ_i(α) * normalized_lag_poly)
     E(X) = Σ_i(μ_i(X) * normalized_lag_poly(β))
+
+    Calculate Q_D(X)
     D(X) * t_I(X) - φ(α) - R(X) = z_I(X) * Q_D(X)
-    E(X) * (βv(X) - 1) + z_I(β) / z_I(0) = z_V(X) * Q_E(X)
     Q_D(X) = (D(X) * t_I(X) - φ(α) - R(X)) / z_I(X)
+
+    Calculate Q_E(X)
+    1) Baloo paper uses this construction
+    v_i = 1 / H_I[col_i]
+    v(X): interpolate polynomial with v_i values
+    E(X) * (βv(X) - 1) + z_I(β) / z_I(0) = z_V(X) * Q_E(X)
     Q_E(X) = (E(X) * (βv(X) - 1) + z_I(β) / z_I(0)) / z_V(X)
+
+    2) Our code uses this optimized construction:
+    v_i = H_I[col_i]
+    v(X): interpolate polynomial with v_i values
+    E(X) * (β - v(X)) + v(X) * z_I(β) / z_I(0) = z_V(X) * Q_E(X)
+    Q_E(X) = (E(X) * (β - v(X)) + v(X) * z_I(β) / z_I(0)) / z_V(X)
     """
     def round_2(self) -> Message2:
         setup = self.setup
-        # alpha = self.alpha
+        alpha = self.alpha
         beta = self.beta
         t_values = self.t_values
         z_I_poly = self.z_I_poly
@@ -266,10 +279,10 @@ class Prover:
         # Compute commitment:
         # Q_D(X) = (D(X) * t_I(X) - φ(α) - R(X)) / z_I(X)
         Q_D_poly = (D_t_poly - pha_poly_at_alpha - R_poly) / z_I_poly
-        # Q_E(X) = (E(X) * (βv(X) - 1) + z_I(β) / z_I(0)) / z_V(X)
+        # Q_E(X) = (E(X) * (β - v(X)) + v(X) * z_I(β) / z_I(0)) / z_V(X)
         z_I_at_beta = z_I_poly.coeff_eval(Scalar(beta))
-        Q_E_poly = (E_poly * (v_poly * beta - Scalar(1)) +
-                    z_I_at_beta / z_I_at_0) / z_V_poly
+        Q_E_poly = (E_poly * (v_poly * Scalar(-1) + beta) +
+                    v_poly * z_I_at_beta / z_I_at_0) / z_V_poly
 
         # π2 = ([D]1 = [D(x)]1, [R]1 = [R(x)]1, [Q2]1 = [Q2(x)]1)
         # π3 = ([E]1 = [E(x)]1, [Q1]1 = [Q1(x)]1)
