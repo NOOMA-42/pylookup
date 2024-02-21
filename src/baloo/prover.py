@@ -98,7 +98,6 @@ class Prover:
     v_values[2] = 1 / H_I[col[2]]
     v_values[3] = 1 / H_I[col[3]]
     """
-    # Output π1 = [z_I]_2 = [z_I(x)]_2, [v]_1 = [v(x)]_1, t = [t(x)]_1
     def round_1(self, lookup) -> Message1:
         setup = self.setup
         # calculate lookup table polynomial φ(X)
@@ -158,6 +157,7 @@ class Prover:
         self.v_poly = v_poly.ifft()
 
         # commit
+        # π1 = ([z_I]_2 = [z_I(x)]_2, [v]_1 = [v(x)]_1, t = [t(x)]_1)
         self.z_I_comm_2 = setup.commit_g2(self.z_I_poly)
         self.v_comm_1 = setup.commit_g1(self.v_poly)
         self.t_comm_1 = setup.commit_g1(self.t_poly)
@@ -166,7 +166,36 @@ class Prover:
         print("self.t_comm_1: ", self.t_comm_1)
         return Message1(self.z_I_comm_2, self.v_comm_1, self.t_comm_1)
 
+    """
+    Calculate μ_i(X), i = [0, m - 1], V is a multiplicative subgroup
+    col_i = col[i]
+    v_i = V[i], v_col_i = V[col_i]
+    μ_i(X) = z_V(X) / (z_V'(v_i) * (X - v_i)) = v_i / m * (X^m - 1) / (X - v_i)
 
+    Calculate Normalized Lagrange Polynomial: τ_col(i)(X) / τ_col(i)(0):
+    ξ_{col(i)}: h_i = H_I[col_i]
+    normalized_lag_poly = τ_col(i)(X) / τ_col(i)(0)
+                        = z_I(X) / z_I(0) * (-ξ_{col(i)}) / (X - ξ_{col(i)})
+
+
+    Calculate R(X): Theorem 5 (Inner Product Polynomial Relation) on Baloo paper
+    root = H_I[col_i]
+    a_i = μ_i(α)
+    b_i = t_I(root)
+    R(X) = Σ_i(a_i * b_i * normalized_lag_poly(root)) - Σ_i(a_i * b_i)
+
+    σ = Σ_i(a_i * b_i)
+    φ(X): Polynomial(lookup, Basis.MONOMIAL), lookup table interpolation polynomial
+    assert σ == φ(α)
+
+    Calculate Q_D(X), Q_E(X)
+    D(X) = Σ_i(μ_i(α) * normalized_lag_poly)
+    E(X) = Σ_i(μ_i(X) * normalized_lag_poly(β))
+    D(X) * t_I(X) - φ(α) - R(X) = z_I(X) * Q_D(X)
+    E(X) * (βv(X) - 1) + z_I(β) / z_I(0) = z_V(X) * Q_E(X)
+    Q_D(X) = (D(X) * t_I(X) - φ(α) - R(X)) / z_I(X)
+    Q_E(X) = (E(X) * (βv(X) - 1) + z_I(β) / z_I(0)) / z_V(X)
+    """
     def round_2(self) -> Message2:
         setup = self.setup
         # alpha = self.alpha
@@ -181,40 +210,7 @@ class Prover:
         m = self.group_order_n
         zero_poly = Polynomial([Scalar(0)], Basis.MONOMIAL)
 
-        """
-        Calculate μ_i(X), i = [0, m - 1], V is a multiplicative subgroup
-        col_i = col[i]
-        v_i = V[i], v_col_i = V[col_i]
-        μ_i(X) = z_V(X) / (z_V'(v_i) * (X - v_i)) = v_i / m * (X^m - 1) / (X - v_i)
-
-        Calculate Normalized Lagrange Polynomial: τ_col(i)(X) / τ_col(i)(0):
-        ξ_{col(i)}: h_i = H_I[col_i]
-        normalized_lag_poly = τ_col(i)(X) / τ_col(i)(0)
-                            = z_I(X) / z_I(0) * (-ξ_{col(i)}) / (X - ξ_{col(i)})
-
-
-        Calculate R(X): Theorem 5 (Inner Product Polynomial Relation) on Baloo paper
-        root = H_I[col_i]
-        a_i = μ_i(α)
-        b_i = t_I(root)
-        R(X) = Σ_i(a_i * b_i * normalized_lag_poly(root)) - Σ_i(a_i * b_i)
-
-        σ = Σ_i(a_i * b_i)
-        φ(X): Polynomial(lookup, Basis.MONOMIAL), lookup table interpolation polynomial
-        assert σ == φ(α)
-
-        Calculate Q_D(X), Q_E(X)
-        D(X) = Σ_i(μ_i(α) * normalized_lag_poly)
-        E(X) = Σ_i(μ_i(X) * normalized_lag_poly(β))
-        D(X) * t_I(X) - φ(α) - R(X) = z_I(X) * Q_D(X)
-        E(X) * (βv(X) - 1) + z_I(β) / z_I(0) = z_V(X) * Q_E(X)
-        Q_D(X) = (D(X) * t_I(X) - φ(α) - R(X)) / z_I(X)
-        Q_E(X) = (E(X) * (βv(X) - 1) + z_I(β) / z_I(0)) / z_V(X)
-        """
-
         V = Scalar.roots_of_unity(m)
-        # todo
-        alpha = V[0] # sample the first row
         # X^m - 1
         z_V_values = [Scalar(-1)] + [Scalar(0)] * (m - 1) + [Scalar(1)]
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
