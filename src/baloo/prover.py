@@ -59,7 +59,7 @@ class Prover:
 
         # Round 2
         msg_2 = self.round_2()
-        self.rho, self.gamma = transcript.round_2(msg_2)
+        self.rho, self.gamma, self.zeta = transcript.round_2(msg_2)
 
         # Round 3
         msg_3 = self.round_3()
@@ -286,13 +286,13 @@ class Prover:
 
     def round_3(self) -> Message3:
         setup = self.setup
-        beta = self.beta
+        rho = self.rho
         gamma = self.gamma
-        group_order_N = self.group_order_N
-        group_order_n = self.group_order_n
+        zeta = self.zeta
 
+        a_comm_1 = setup.powers_of_x[0]
         return Message3(
-
+            a_comm_1
         )
 
     # random linear combination

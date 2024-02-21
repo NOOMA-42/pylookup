@@ -63,5 +63,6 @@ class Transcript(MerlinTranscript):
 
         rho = self.get_and_append_challenge(b"rho")
         gamma = self.get_and_append_challenge(b"gamma")
+        zeta = self.get_and_append_challenge(b"zeta")
 
-        return rho, gamma
+        return rho, gamma, zeta
