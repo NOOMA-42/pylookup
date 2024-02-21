@@ -247,22 +247,22 @@ class InterpolationPoly:
         self.Y = np.array(Y)
 
     # f(X) = X - a
-    def root_poly(self, x_val: Scalar):
+    def root_poly(self, x_val: Scalar) -> Polynomial:
         return Polynomial([-x_val, Scalar(1)], Basis.MONOMIAL)
 
     # f(X) = a
-    def const_poly(self, x_val: Scalar):
+    def const_poly(self, x_val: Scalar) -> Polynomial:
         return Polynomial([x_val], Basis.MONOMIAL)
 
     # z_H(X) = (X - self.X[0])(X - self.X[1])(X - self.X[2])...
-    def vanishing_poly(self):
+    def vanishing_poly(self) -> Polynomial:
         v_poly = self.const_poly(Scalar(1))
         for i in range(self.n):
             v_poly *= self.root_poly(self.X[i])
         return v_poly
 
     # compute the derivative
-    def vanishing_poly_diff(self):
+    def vanishing_poly_diff(self) -> Polynomial:
         v_poly = self.vanishing_poly()
         v_diff_poly = self.const_poly(Scalar(0))
         for i in range(self.n):
@@ -271,7 +271,7 @@ class InterpolationPoly:
 
     # Give i, return ith Lagrange polynomial L_i(X)
     # L_i(X) = z_H(X) / z_H'(a_i) / (X - a_i)
-    def lagrange_poly(self, i: int):
+    def lagrange_poly(self, i: int) -> Polynomial:
         v_poly = self.vanishing_poly()
         v_diff_poly = self.vanishing_poly_diff()
         x_val = self.X[i]
@@ -280,7 +280,7 @@ class InterpolationPoly:
         return v_poly / root_poly / v_diff_poly_at_i
 
     # f(X) = Σ(L_i(X) * y_i)
-    def poly(self):
+    def poly(self) -> Polynomial:
         poly = self.const_poly(Scalar(0))
         for i in range(self.n):
             lagrange_poly = self.lagrange_poly(i)
