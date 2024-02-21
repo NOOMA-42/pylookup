@@ -5,16 +5,16 @@ from src.baloo.prover import Prover
 
 # setup: public setup includes srs
 # public_table: public table
-# witness: values to lookup
-def prover(setup: Setup, public_table: [any], witness: [any]):
+# lookup: values to lookup
+def prover(setup: Setup, public_table: [any], lookup: [any]):
     print("Beginning prover test")
 
     print("table: ", public_table)
-    print("witness: ", witness)
-    group_order_n = len(witness)
+    print("lookup: ", lookup)
+    group_order_n = len(lookup)
 
     prover = Prover(setup, public_table, group_order_n)
-    proof = prover.prove(witness)
+    proof = prover.prove(lookup)
     print("Prover test success")
 
     return proof
@@ -33,16 +33,16 @@ def simple_test():
     # public table
     table = [1, 2, 3, 4, 5, 6, 7, 8]
     # values to lookup
-    witness = [3, 7, 3, 4]
+    lookup = [3, 7, 3, 4]
 
     group_order_N = len(table)
-    group_order_n = len(witness)
+    group_order_n = len(lookup)
     # number of powers of tau
     powers = group_order_N * 2
     # do setup
     setup = Setup.execute(powers, tau, table)
     # run prover
-    proof = prover(setup, table, witness)
+    proof = prover(setup, table, lookup)
     # run verifier
     verifier(setup, proof, group_order_N, group_order_n)
     print("===========> End simple test ===========> ")
@@ -61,18 +61,18 @@ def random_test():
     print("table: ", table)
 
     # values to lookup
-    witness = []
+    lookup = []
     for _ in range(table_len):
-        witness.append(random.randint(1, table_len))
+        lookup.append(random.randint(1, table_len))
 
     group_order_N = len(table)
-    group_order_n = len(witness)
+    group_order_n = len(lookup)
     # number of powers of tau
     powers = group_order_N * 2
     # do setup
     setup = Setup.execute(powers, tau, table)
     # run prover
-    proof = prover(setup, table, witness)
+    proof = prover(setup, table, lookup)
     # run verifier
     verifier(setup, proof, group_order_N, group_order_n)
 
