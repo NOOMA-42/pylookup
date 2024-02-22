@@ -150,10 +150,10 @@ class VerificationKey:
         print("Finished to verify proof")
         return True
 
-    # Compute challenges (should be same as those computed by prover)
+    # Compute challenges (same as those computed by prover)
     def compute_challenges(
         self, proof
-    ) -> tuple[Scalar, Scalar, Scalar, Scalar, Scalar, Scalar]:
+    ) -> tuple[Scalar, Scalar, Scalar, Scalar]:
         transcript = Transcript(b"plonk")
         alpha, beta = transcript.round_1(proof.msg_1)
         gamma, zeta = transcript.round_2(proof.msg_2)
