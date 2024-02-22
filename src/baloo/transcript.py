@@ -69,8 +69,7 @@ class Transcript(MerlinTranscript):
         self.append_point(b"E_comm_1", message.E_comm_1)
         self.append_point(b"Q_E_comm_1", message.Q_E_comm_1)
 
-        rho = self.get_and_append_challenge(b"rho")
         gamma = self.get_and_append_challenge(b"gamma")
         zeta = self.get_and_append_challenge(b"zeta")
 
-        return rho, gamma, zeta
+        return gamma, zeta

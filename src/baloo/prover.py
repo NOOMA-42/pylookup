@@ -63,7 +63,7 @@ class Prover:
 
         # Round 2
         msg_2 = self.round_2()
-        self.rho, self.gamma, self.zeta = transcript.round_2(msg_2)
+        self.gamma, self.zeta = transcript.round_2(msg_2)
 
         # Round 3
         msg_3 = self.round_3()
@@ -316,7 +316,6 @@ class Prover:
         setup = self.setup
         alpha = self.alpha
         beta = self.beta
-        rho = self.rho
         gamma = self.gamma
         zeta = self.zeta
         phi_poly = self.phi_poly
