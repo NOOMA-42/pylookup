@@ -13,17 +13,16 @@ def prover(setup: Setup, public_table: [any], lookup: [any]):
     print("lookup: ", lookup)
     group_order_n = len(lookup)
 
-    prover = Prover(setup, public_table, group_order_n)
+    prover = Prover(setup, public_table)
     proof = prover.prove(lookup)
     print("Prover test success")
 
     return proof
 
-def verifier(setup: Setup, proof, group_order_N, group_order_n):
+def verifier(setup: Setup, proof, m: int):
     print("Beginning verifier test")
-    common_preprocessed_input = CommonPreprocessedInput(group_order_N, group_order_n)
-    vk = setup.verification_key(common_preprocessed_input)
-    assert vk.verify_proof(proof, setup)
+    vk = setup.verification_key()
+    assert vk.verify_proof(proof, setup, m)
     print("Verifier test success")
 
 def simple_test():
@@ -35,16 +34,15 @@ def simple_test():
     # values to lookup
     lookup = [3, 7, 3, 4]
 
-    group_order_N = len(table)
-    group_order_n = len(lookup)
     # number of powers of tau
-    powers = group_order_N * 2
+    powers = len(table) * 2
     # do setup
     setup = Setup.execute(powers, tau, table)
     # run prover
     proof = prover(setup, table, lookup)
     # run verifier
-    verifier(setup, proof, group_order_N, group_order_n)
+    m = len(lookup)
+    verifier(setup, proof, m)
     print("===========> End simple test ===========> ")
 
 def random_test():
@@ -65,16 +63,15 @@ def random_test():
     for _ in range(table_len):
         lookup.append(random.randint(1, table_len))
 
-    group_order_N = len(table)
-    group_order_n = len(lookup)
     # number of powers of tau
-    powers = group_order_N * 2
+    powers = len(table) * 2
     # do setup
     setup = Setup.execute(powers, tau, table)
     # run prover
     proof = prover(setup, table, lookup)
     # run verifier
-    verifier(setup, proof, group_order_N, group_order_n)
+    m = len(lookup)
+    verifier(setup, proof, m)
 
 
 if __name__ == "__main__":

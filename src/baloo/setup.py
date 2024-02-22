@@ -11,8 +11,10 @@ class Setup(object):
     # = ( G,    xG,  ...,  x^{d-1}G ), where G is a generator of G_1
     powers_of_x: list[G1Point]
     powers_of_x2: list[G2Point]
-    Z_H_comm_1: G1Point
-    T_comm_1: G1Point
+    z_H_comm_1: G2Point
+    t_comm_1: G2Point
+    # coeffs of quotient commitment polynomial of T(X) in coefficient form
+    Q_T_comm_poly_coeffs: list[G1Point]
 
     @classmethod
     # tau: a random number whatever you choose
@@ -78,34 +80,29 @@ class Setup(object):
         # 1. generate_srs: will do in the runtime
         self.generate_srs(powers, tau)
         table_len = len(public_table)
-        # 2. Compute and output [ZV(x)] * G2
+        # 2. Compute and output [z_H(x)] * G1
         # vanishing polynomial: X^N - 1, N = group_order_N - 1
-        Z_H_array = [Scalar(-1)] + [Scalar(0)] * (table_len - 1) + [Scalar(1)]
+        z_H_array = [Scalar(-1)] + [Scalar(0)] * (table_len - 1) + [Scalar(1)]
         # in coefficient form
-        Z_H_poly = Polynomial(Z_H_array, Basis.MONOMIAL)
-        Z_H_comm_1 = self.commit_g1(Z_H_poly)
-        print("Commitment of Z_H(X) on G1: ", Z_H_comm_1)
+        z_H_poly = Polynomial(z_H_array, Basis.MONOMIAL)
 
+        z_H_comm_1 = self.commit_g1(z_H_poly)
+        print("Commitment of z_H(X) on G1: ", z_H_comm_1)
         # 3. Compute and output [T(x)] * G1
         t_values = [Scalar(val) for val in public_table]
-        T_poly = Polynomial(t_values, Basis.LAGRANGE)
-        T_comm_1 = self.commit_g1(T_poly)
-        print("Commitment of T(X) on G1: ", T_comm_1)
-
-        self.Z_H_comm_1 = Z_H_comm_1
-        self.T_comm_1 = T_comm_1
-
+        t_poly = Polynomial(t_values, Basis.LAGRANGE)
+        t_comm_1 = self.commit_g1(t_poly)
+        print("Commitment of T(X) on G1: ", t_comm_1)
+        self.z_H_comm_1 = z_H_comm_1
+        self.t_comm_1 = t_comm_1
         print("setup complete")
         return self
 
     @classmethod
-    def verification_key(self, pk: CommonPreprocessedInput) -> VerificationKey:
+    def verification_key(self) -> VerificationKey:
         return VerificationKey(
-            pk.group_order_N,
-            pk.group_order_n,
-            Scalar.root_of_unity(pk.group_order_N),
-            Scalar.root_of_unity(pk.group_order_n),
-            self.powers_of_x2,
-            self.T_comm_1,
-            self.Z_H_comm_1
+            self.powers_of_x2[1],
+            len(self.powers_of_x),
+            self.t_comm_1,
+            self.z_H_comm_1,
         )

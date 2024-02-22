@@ -16,7 +16,8 @@ class Proof:
         # msg_1
         proof["z_I_comm_2"] = self.msg_1.z_I_comm_2
         proof["v_comm_1"] = self.msg_1.v_comm_1
-        proof["t_comm_1"] = self.msg_1.t_comm_1
+        proof["t_I_comm_1"] = self.msg_1.t_I_comm_1
+        proof["phi_comm_1"] = self.msg_1.phi_comm_1
         # msg_2
         proof["D_comm_1"] = self.msg_2.D_comm_1
         proof["R_comm_1"] = self.msg_2.R_comm_1
@@ -33,26 +34,31 @@ class Proof:
         proof["w2_comm_1"] = self.msg_3.w2_comm_1
         proof["w3_comm_1"] = self.msg_3.w3_comm_1
         proof["w4_comm_1"] = self.msg_3.w4_comm_1
+        proof["w5_comm_1"] = self.msg_3.w5_comm_1
+        proof["w6_comm_1"] = self.msg_3.w6_comm_1
 
         return proof
 
 @dataclass
 class Prover:
-    group_order_N: int
-    group_order_n: int
     setup: Setup
     table: list
 
-    def __init__(self, setup: Setup, table: list, group_order_n: int):
+    def __init__(self, setup: Setup, table: list):
         self.setup = setup
         self.table = table
-        self.t_values = [Scalar(val) for val in self.table]
-        self.group_order_N = len(table)
-        self.group_order_n = group_order_n
-        self.roots_of_unity_N = Scalar.roots_of_unity(self.group_order_N)
-        self.roots_of_unity_n = Scalar.roots_of_unity(group_order_n)
+        self.t_values = [Scalar(val) for val in table]
+        self.t_poly = Polynomial(self.t_values, Basis.LAGRANGE).ifft()
+        self.roots_of_unity_N = Scalar.roots_of_unity(len(table))
         self.powers_of_x = setup.powers_of_x
+        # vanishing polynomial: X^N - 1, N = len(table)
+        z_H_array = [Scalar(-1)] + [Scalar(0)] * (len(table) - 1) + [Scalar(1)]
+        # in coefficient form
+        self.z_H_poly = Polynomial(z_H_array, Basis.MONOMIAL)
+
     def prove(self, lookup) -> Proof:
+        self.m = len(lookup)
+
         # Initialise Fiat-Shamir transcript
         transcript = Transcript(b"plonk")
         self.lookup_table = [Scalar(val) for val in lookup]
@@ -104,28 +110,25 @@ class Prover:
     """
     def round_1(self, lookup) -> Message1:
         setup = self.setup
+        m = self.m
         # calculate lookup table polynomial φ(X)
         phi_values = [Scalar(val) for val in lookup]
         phi_poly = Polynomial(phi_values, Basis.LAGRANGE)
         # coefficient form
         self.phi_poly = phi_poly.ifft()
-        # commit phi(X) on G1(by default)
+        # commit phi(X) on G1
         self.phi_comm_1 = setup.commit_g1(self.phi_poly)
         print("Commitment of phi(X): ", self.phi_comm_1)
         # remove duplicated elements
         t_values = list(set(lookup))
         # transform to Scalar
         t_values = [Scalar(elem) for elem in t_values]
-        self.t_values = t_values
         print("t: ", t_values)
         # I: the index of t_values elements in sub table t_I
         I_values = [Scalar(self.table.index(elem)) for elem in t_values]
         print("I: ", I_values)
-        m = len(lookup)
-        N = self.group_order_N
         # H_I = {ξ_i} , i = [1, k], ξ(Xi)
-        roots_of_unity = Scalar.roots_of_unity(N)
-        H_I = [roots_of_unity[i.n] for i in I_values]  # len(H_I) = k
+        H_I = [self.roots_of_unity_N[i.n] for i in I_values]  # len(H_I) = k
         self.H_I = H_I
         print("H_I: ", H_I)
         H_I_interp_poly = InterpolationPoly(H_I, t_values)
@@ -156,7 +159,7 @@ class Prover:
         v_poly = Polynomial(v_values, Basis.LAGRANGE)
         # refer to section 5. can not use FFT due to it's not in multiplicative subgroup
         t_interp_poly = InterpolationPoly(H_I, t_values)
-        self.t_poly = t_interp_poly.poly()
+        self.t_I_poly = t_interp_poly.poly()
 
         self.v_poly = v_poly.ifft()
 
@@ -164,12 +167,13 @@ class Prover:
         # π1 = ([z_I]_2 = [z_I(x)]_2, [v]_1 = [v(x)]_1, t = [t(x)]_1)
         self.z_I_comm_2 = setup.commit_g2(self.z_I_poly)
         self.v_comm_1 = setup.commit_g1(self.v_poly)
-        self.t_comm_1 = setup.commit_g1(self.t_poly)
+        self.t_I_comm_1 = setup.commit_g1(self.t_I_poly)
 
         return Message1(
             self.z_I_comm_2,
             self.v_comm_1,
-            self.t_comm_1
+            self.t_I_comm_1,
+            self.phi_comm_1
         )
 
     """
@@ -219,27 +223,25 @@ class Prover:
         setup = self.setup
         alpha = self.alpha
         beta = self.beta
-        t_values = self.t_values
         z_I_poly = self.z_I_poly
-        t_poly = self.t_poly
+        t_I_poly = self.t_I_poly
         v_poly = self.v_poly
         phi_poly = self.phi_poly
         col = self.col
         H_I = self.H_I
-        m = self.group_order_n
+        m = self.m
         zero_poly = Polynomial([Scalar(0)], Basis.MONOMIAL)
 
         V = Scalar.roots_of_unity(m)
         # X^m - 1
         z_V_values = [Scalar(-1)] + [Scalar(0)] * (m - 1) + [Scalar(1)]
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
+        # z_I(0)
         z_I_at_0 = z_I_poly.coeff_eval(Scalar(0))
         print("z_I_at_0: ", z_I_at_0, -z_I_at_0)
         # calculate D(X) = Σ_{0, m-1} μ_i(α) * τ^_{col(i)}(X)
         D_poly = zero_poly
         E_poly = zero_poly
-
-        H_I_interp_poly = InterpolationPoly(H_I, t_values)
 
         d_t_sum_poly = zero_poly
         sum = Scalar(0)
@@ -266,7 +268,7 @@ class Prover:
             E_poly += mu_poly * normalized_lag_poly_at_beta
 
             a_i = mu_poly_at_alpha
-            b_i = t_poly.coeff_eval(root)
+            b_i = t_I_poly.coeff_eval(root)
             print("a_i: ", a_i, -a_i)
             print("b_i: ", b_i, -b_i)
             sum_accu = a_i * b_i
@@ -274,7 +276,7 @@ class Prover:
             poly_accu = normalized_lag_poly * sum_accu
             d_t_sum_poly += poly_accu
         print("D_poly.values: ", D_poly.values)
-        D_t_poly = D_poly * t_poly
+        D_t_poly = D_poly * t_I_poly
         print("D_t_poly.values: ", D_t_poly.values)
         print("sum: ", sum)
         pha_poly_at_alpha = phi_poly.coeff_eval(alpha)
@@ -320,7 +322,7 @@ class Prover:
         zeta = self.zeta
         phi_poly = self.phi_poly
         z_I_poly = self.z_I_poly
-        t_poly = self.t_poly
+        t_I_poly = self.t_I_poly
         v_poly = self.v_poly
         z_V_poly = self.z_V_poly
         D_poly = self.D_poly
@@ -328,8 +330,10 @@ class Prover:
         R_poly = self.R_poly
         Q_D_poly = self.Q_D_poly
         Q_E_poly = self.Q_E_poly
+        t_poly = self.t_poly
+        z_H_poly = self.z_H_poly
         d = len(self.powers_of_x) - 1
-        m = self.group_order_n
+        m = self.m
 
         # calculate v1, v2, v3, v4, v5
         # v1 = e(α)
@@ -346,7 +350,7 @@ class Prover:
         # P_D(X) = D(β) * t_I(X) - φ(α) - R(X) - z_I(β) * Q_D(X)
         # P_E(X) = E(ζ) * (β - v(X)) + v(X) * z_I(β) / z_I(0) - z_V(ζ) * Q_E(X)
         D_poly_at_beta = D_poly.coeff_eval(beta)
-        P_D_poly = t_poly * D_poly_at_beta - v2 - R_poly - Q_D_poly * v4
+        P_D_poly = t_I_poly * D_poly_at_beta - v2 - R_poly - Q_D_poly * v4
         E_poly_at_zeta = E_poly.coeff_eval(zeta)
         z_V_poly_at_zeta = z_V_poly.coeff_eval(zeta)
         P_E_poly = (v_poly * Scalar(-1) + beta) * E_poly_at_zeta + \
@@ -386,6 +390,12 @@ class Prover:
         w3_comm_1 = setup.commit_g1(w3_poly)
         w4_comm_1 = setup.commit_g1(w4_poly)
 
+        # caulk+
+        w5_poly = (t_poly - t_I_poly) / z_I_poly
+        w6_poly = z_H_poly / z_I_poly
+        w5_comm_1 = setup.commit_g1(w5_poly)
+        w6_comm_1 = setup.commit_g1(w6_poly)
+
         return Message3(
             v1,
             v2,
@@ -396,4 +406,6 @@ class Prover:
             w2_comm_1,
             w3_comm_1,
             w4_comm_1,
+            w5_comm_1,
+            w6_comm_1
         )
