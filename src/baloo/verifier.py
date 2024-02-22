@@ -163,24 +163,3 @@ class VerificationKey:
 
         return alpha, beta, gamma, zeta
 
-    def verify_commitment(self, proof, W, W_quot_key, eval_key, zeta):
-        W_quot = proof[W_quot_key]
-        eval = proof[eval_key]
-        ec_comb = ec_lincomb(
-            [
-                (W, 1),
-                (W_quot, zeta),
-                (b.G1, -eval),
-            ]
-        )
-
-        assert b.pairing(self.X_2, W_quot) == b.pairing(b.G2, ec_comb)
-        print(f"Done KZG10 commitment check for {eval_key} polynomial")
-
-    def rlc(self, term_1, term_2, term_3, eta):
-        return term_1 + term_2 * eta + term_3 * eta * eta
-
-    # generate polynomial: X^n
-    def x_exponent_poly(self, n: int) -> Polynomial:
-        values = [Scalar(0)] * (n - 1) + [Scalar(1)]
-        return Polynomial(values, Basis.MONOMIAL)
