@@ -102,7 +102,6 @@ class Setup(object):
     def verification_key(self) -> VerificationKey:
         return VerificationKey(
             self.powers_of_x2[1],
-            len(self.powers_of_x),
             self.t_comm_1,
             self.z_H_comm_1,
         )

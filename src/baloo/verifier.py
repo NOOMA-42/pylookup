@@ -9,8 +9,6 @@ poly_util = PolyUtil()
 @dataclass
 class VerificationKey:
     x2: G2Point
-    # length of SRS on G1
-    d: int
     # commitment to public table
     t_comm_1: G1Point
     # commitment to vanishing polynomial of public table
