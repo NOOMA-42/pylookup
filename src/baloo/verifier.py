@@ -52,7 +52,7 @@ class VerificationKey:
             (t_I_comm_1, v1),
             (b.G1, -v2),
             (R_comm_1, -scalar_one),
-            (Q_D_comm_1, v4),
+            (Q_D_comm_1, -v4),
         ])
         # X^m - 1
         z_V_values = poly_util.vanishing_poly(m)
