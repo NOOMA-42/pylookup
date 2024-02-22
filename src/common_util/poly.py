@@ -127,7 +127,7 @@ class Polynomial:
             if (self.basis == Basis.MONOMIAL):
                 qx, rx = P.polydiv(self.values, other.values)
                 # here we only consider the scenario of remainder is 0
-                assert rx == [0]
+                assert list(rx) == [0]
 
                 return Polynomial(
                     qx,
@@ -197,6 +197,21 @@ class Polynomial:
 
     def ifft(self):
         return self.fft(True)
+    
+    # add two polynomial for all cases
+    # this may be slower than the normal +
+    def force_add(self, other):
+        assert isinstance(other, Polynomial)
+        if self.basis != other.basis:
+            if self.basis == Basis.LAGRANGE:
+                return self.ifft() + other
+            else:
+                return self + other.ifft()
+        else:
+            if self.basis == Basis.LAGRANGE and len(self.values) != len(other.values):
+                return self.ifft() + other.ifft()
+            else:
+                return self + other
 
     # Given a polynomial expressed as a list of evaluations at roots of unity,
     # evaluate it at x directly, without using an FFT to covert to coeffs first
@@ -232,3 +247,15 @@ class Polynomial:
             x_pow = x_pow * x
             result = result + coeffs[i] * x_pow
         return result
+    
+    def eval(self, x: Scalar):
+        if self.basis == Basis.LAGRANGE:
+            return self.barycentric_eval(x)
+        else:
+            return self.coeff_eval(x)
+
+    def to_mononial(self):
+        if self.basis == Basis.LAGRANGE:
+            return self.ifft()
+        else:
+            return self
