@@ -1,17 +1,15 @@
-from dataclasses import dataclass
-from caulk_setup import Setup
-from src.caulk.prover import Proof, Prover, Proof_pederson, Proof_unity, vanishing_poly, lagrange_polys, \
-    single_term_poly
-from src.caulk.util import hash_ec_points
+from caulk_single_setup import CaulkSingleSetup
+from src.caulk.single.caulk_single_prover import Proof, CaulkSingleProver, Proof_pederson, Proof_unity
+from src.caulk.util import hash_ec_points, vanishing_poly, lagrange_polys, single_term_poly
 from src.common_util.curve_optimized import Scalar, ec_mul, G1, ec_add, ec_sub, ec_pairing, G2, G1Point, ec_eq, \
     ec_lincomb
-from src.common_util.poly_optimized import Polynomial, Basis
+from src.common_util.poly_optimized import Polynomial
 
 
-class Verifier:
-    setup: Setup
+class CaulkSingleVerifier:
+    setup: CaulkSingleSetup
 
-    def __init__(self, setup: Setup):
+    def __init__(self, setup: CaulkSingleSetup):
         self.setup = setup
 
     def verify(self, proof: Proof):
@@ -63,7 +61,7 @@ class Verifier:
              (proof.f_comm, f_power),
              (G1, g1_power)))
 
-        x_d_poly = single_term_poly(setup.kzgSetup.length-2)
+        x_d_poly = single_term_poly(setup.kzgSetup.length - 2)
         x_d_comm = setup.kzgSetup.commit_G1(x_d_poly)
         g1_term = ec_mul(G1, -rho_alphas[0] - rho_alphas[1])
         g1_term = ec_add(g1_term, ec_mul(x_d_comm, z_vn_alpha))
@@ -83,9 +81,9 @@ class Verifier:
 
 
 if __name__ == "__main__":
-    setup = Setup.example_setup()
-    prover = Prover(setup)
+    setup = CaulkSingleSetup.example_setup()
+    prover = CaulkSingleProver(setup)
     proof = prover.prove(Scalar(2))
 
-    verifier = Verifier(setup)
+    verifier = CaulkSingleVerifier(setup)
     verifier.verify(proof)

@@ -1,36 +1,9 @@
 from dataclasses import dataclass
 
-from py_ecc.secp256k1.secp256k1 import bytes_to_int
-
-from caulk_setup import Setup
-from src.caulk.util import hash_ec_points
-from src.common_util.curve_optimized import Scalar, ec_mul, G1, ec_add, ec_sub, ec_pairing, G2, G1Point, G2Point, \
-    ec_lincomb, ec_eq
-from src.common_util.merlin.keccak import SHA3_256
+from caulk_single_setup import CaulkSingleSetup
+from src.caulk.util import hash_ec_points, vanishing_poly, lagrange_polys, single_term_poly
+from src.common_util.curve_optimized import Scalar, ec_mul, G1, G1Point, G2Point
 from src.common_util.poly_optimized import Polynomial, Basis
-
-
-# utility functions
-def vanishing_poly(n: int) -> Polynomial:
-    vals = [Scalar(-1)] + [Scalar(0)] * (n - 1) + [Scalar(1)]
-    return Polynomial(vals, Basis.MONOMIAL)
-
-
-def lagrange_polys(n: int):
-    polys = []
-    for i in range(n):
-        poly = Polynomial([Scalar(0)] * i + [Scalar(1)] + [Scalar(0)] * (n - i - 1), Basis.LAGRANGE)
-        polys.append(poly.ifft())
-
-    return polys
-
-
-def single_term_poly(degree: int):
-    vals = [Scalar(0)] * degree + [Scalar(1)]
-    return Polynomial(vals, Basis.MONOMIAL)
-
-
-# Change of variable e.g. f(X) -> f(aX)
 
 
 @dataclass
@@ -63,8 +36,8 @@ class Proof:
     proof_unity: Proof_unity
 
 
-class Prover:
-    def __init__(self, setup: Setup):
+class CaulkSingleProver:
+    def __init__(self, setup: CaulkSingleSetup):
         self.setup = setup
 
     def prove(self, v: Scalar) -> Proof:
@@ -182,6 +155,6 @@ class Prover:
 
 if __name__ == "__main__":
     n = 8
-    setup = Setup.example_setup()
-    prover = Prover(setup)
+    setup = CaulkSingleSetup.example_setup()
+    prover = CaulkSingleProver(setup)
     proof = prover.prove(Scalar(2))

@@ -7,7 +7,7 @@ from src.common_util.poly_optimized import Polynomial, Basis
 
 
 @dataclass
-class Setup:
+class CaulkSingleSetup:
     kzgSetup: KZGSetup
     c: list[Scalar]
     c_poly: Polynomial
@@ -47,5 +47,5 @@ class Setup:
 
 
 if __name__ == "__main__":
-    setup = Setup.example_setup()
+    setup = CaulkSingleSetup.example_setup()
     print(setup.roots_N)
