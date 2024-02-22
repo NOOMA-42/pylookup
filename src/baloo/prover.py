@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 import numpy as np
-from src.common_util.poly import Polynomial, Basis, InterpolationPoly, root_poly, vanishing_poly
+from src.common_util.poly import Polynomial, Basis, InterpolationPoly, PolyUtil
 from src.common_util.curve import Scalar
 from src.baloo.setup import *
 from src.baloo.transcript import Transcript, Message1, Message2, Message3
+
+poly_util = PolyUtil()
 
 @dataclass
 class Proof:
@@ -50,9 +52,8 @@ class Prover:
         self.t_values = [Scalar(val) for val in table]
         self.t_poly = Polynomial(self.t_values, Basis.LAGRANGE).ifft()
         self.roots_of_unity_N = Scalar.roots_of_unity(len(table))
-        self.powers_of_x = setup.powers_of_x
         # vanishing polynomial: X^N - 1, N = len(table)
-        z_H_array = vanishing_poly(len(table))
+        z_H_array = poly_util.vanishing_poly(len(table))
         # in coefficient form
         self.z_H_poly = Polynomial(z_H_array, Basis.MONOMIAL)
 
@@ -234,7 +235,7 @@ class Prover:
 
         V = Scalar.roots_of_unity(m)
         # X^m - 1
-        z_V_values = vanishing_poly(m)
+        z_V_values = poly_util.vanishing_poly(m)
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
         # z_I(0)
         z_I_at_0 = z_I_poly.coeff_eval(Scalar(0))
@@ -252,7 +253,7 @@ class Prover:
             # ξ_i
             root = H_I[col_i]
             # X - ξ_i
-            x_root_poly = root_poly(root)
+            x_root_poly = poly_util.root_poly(root)
             # Lagrange polynomial on V: μ_i(X)
             mu_poly = z_V_poly / v_root_poly * v_root / Scalar(m)
             # Normalized Lagrange Polynomial: τ_col(i)(X) / τ_col(i)(0)
@@ -332,7 +333,7 @@ class Prover:
         Q_E_poly = self.Q_E_poly
         t_poly = self.t_poly
         z_H_poly = self.z_H_poly
-        d = len(self.powers_of_x) - 1
+        d = len(setup.powers_of_x)
         m = self.m
 
         # calculate v1, v2, v3, v4, v5
@@ -357,16 +358,16 @@ class Prover:
             v_poly * v4 / v3 - Q_E_poly * z_V_poly_at_zeta
 
         # X^(d-m+1)
-        x_exponent_values = [Scalar(0)] * (d - m) + [Scalar(1)]
-        x_exponent_poly = Polynomial(x_exponent_values, Basis.MONOMIAL)
+        x_exponent_poly = poly_util.x_exponent_poly(d - m + 1)
         # calculate [w1]1, [w2]1, [w2]1, [w4]1
         # X - α
-        x_alpha_poly = root_poly(Scalar(alpha))
+        x_alpha_poly = poly_util.root_poly(Scalar(alpha))
         # calculate w1
         w1_poly = x_exponent_poly * \
             (E_poly - v1 + (phi_poly - v2) * gamma) / x_alpha_poly
-        x_poly = root_poly(Scalar(0))
-        x_m_exponent_poly = Polynomial([Scalar(0)] * m + [Scalar(1)], Basis.MONOMIAL)
+        x_poly = poly_util.root_poly(Scalar(0))
+        # x^m
+        x_m_exponent_poly = poly_util.x_exponent_poly(m)
         # calculate w2
         w2_poly = (z_I_poly - v3) / x_poly + R_poly * gamma / x_poly + \
             x_exponent_poly * (
@@ -374,13 +375,13 @@ class Prover:
                 R_poly * gamma ** 3
             )
         # X - β
-        x_beta_poly = root_poly(Scalar(beta))
+        x_beta_poly = poly_util.root_poly(Scalar(beta))
         # calculate w3
         w3_poly = (D_poly - v1) / x_beta_poly + \
             (z_I_poly - v4) * gamma / x_beta_poly + \
             P_D_poly * gamma ** 2 / x_beta_poly
         # X - ζ
-        x_zeta_poly = root_poly(Scalar(zeta))
+        x_zeta_poly = poly_util.root_poly(Scalar(zeta))
         # calculate w4
         w4_poly = (E_poly - v5) / x_zeta_poly + \
             P_E_poly * gamma / x_zeta_poly

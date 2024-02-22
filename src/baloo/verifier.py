@@ -1,8 +1,10 @@
 import py_ecc.bn128 as b
 from dataclasses import dataclass
 from src.baloo.transcript import Transcript
-from src.common_util.poly import Polynomial, Basis, vanishing_poly
+from src.common_util.poly import Polynomial, Basis, PolyUtil
 from src.common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
+
+poly_util = PolyUtil()
 
 @dataclass
 class VerificationKey:
@@ -53,7 +55,7 @@ class VerificationKey:
             (Q_D_comm_1, v4),
         ])
         # X^m - 1
-        z_V_values = vanishing_poly(m)
+        z_V_values = poly_util.vanishing_poly(m)
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
         z_V_poly_at_zeta = z_V_poly.coeff_eval(Scalar(zeta))
         print("z_V_poly_at_zeta: ", z_V_poly_at_zeta)
@@ -83,7 +85,7 @@ class VerificationKey:
 
         # 2. verify w1 for X = α
         # X^(d-m+1)
-        x_exponent_poly_1 = self.x_exponent_poly(d - m + 1)
+        x_exponent_poly_1 = poly_util.x_exponent_poly(d - m + 1)
         x_exponent_1_comm_2 = setup.commit_g2(x_exponent_poly_1)
         w1_rhs1 = ec_lincomb([
             (E_comm_1, scalar_one),
