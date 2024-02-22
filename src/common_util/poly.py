@@ -206,6 +206,10 @@ class Polynomial:
 
         order = len(self.values)
         roots_of_unity = Scalar.roots_of_unity(order)
+        elem = x.n % Scalar.field_modulus
+        if elem in roots_of_unity:
+            return self.values[roots_of_unity.index(elem)]
+
         return (
             (Scalar(x) ** order - 1)
             / order
@@ -223,6 +227,8 @@ class Polynomial:
         assert self.basis == Basis.MONOMIAL
         coeffs = self.values
         result = coeffs[0]
+        x_pow = Scalar(1)
         for i in range(1, len(coeffs)):
-            result = result + coeffs[i] * x**i
+            x_pow = x_pow * x
+            result = result + coeffs[i] * x_pow
         return result
