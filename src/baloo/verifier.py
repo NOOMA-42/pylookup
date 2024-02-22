@@ -14,13 +14,14 @@ class VerificationKey:
     # commitment to vanishing polynomial of public table
     z_H_comm_1: G1Point
 
-    def verify_proof(self, pf, setup, m) -> bool:
+    # m: len(lookup)
+    def verify_proof(self, proof_instance, setup, lookup_table_len) -> bool:
         print("Start to verify proof")
-        alpha, beta, gamma, zeta = self.compute_challenges(pf)
+        alpha, beta, gamma, zeta = self.compute_challenges(proof_instance)
         x2 = self.x2
         t_comm_1 = self.t_comm_1
         z_H_comm_1 = self.z_H_comm_1
-        proof = pf.flatten()
+        proof = proof_instance.flatten()
         # get commitments
         z_I_comm_2 = proof["z_I_comm_2"]
         v_comm_1 = proof["v_comm_1"]
@@ -43,8 +44,9 @@ class VerificationKey:
         w5_comm_1 = proof["w5_comm_1"]
         w6_comm_1 = proof["w6_comm_1"]
         scalar_one = Scalar(1)
-        d = self.d
-
+        # length of SRS on G1
+        d = len(setup.powers_of_x)
+        m = lookup_table_len
         # calculate commitment [P_D(X)]1
         P_D_comm_1 = ec_lincomb([
             (t_I_comm_1, v1),
