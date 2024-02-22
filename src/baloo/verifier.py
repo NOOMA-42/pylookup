@@ -117,7 +117,7 @@ class VerificationKey:
         ])
         w2_rhs3 = ec_lincomb([
             (R_comm_1, gamma),
-            (b.G1, v3),
+            (b.G1, -v3),
         ])
         assert b.pairing(x2, w2_comm_1) == b.pairing(z_I_comm_2, w2_rhs1) * b.pairing(
             x_exp_poly_2_comm_2, w2_rhs2) * b.pairing(b.G2, w2_rhs3), "w2 paring check failed"
