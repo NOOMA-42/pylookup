@@ -90,8 +90,7 @@ class VerificationKey:
         w1_rhs1 = ec_lincomb([
             (E_comm_1, scalar_one),
             (phi_comm_1, gamma),
-            (b.G1, -v1),
-            (b.G1, -gamma * v2),
+            (b.G1, -v1 - gamma * v2),
         ])
         w1_rhs2 = ec_lincomb([
             (w1_comm_1, alpha),
@@ -102,34 +101,34 @@ class VerificationKey:
 
         # 3. verify w2 for X = 0
         # X^(d-m+2)
-        x_exponent_poly_2 = self.x_exponent_poly(d - m + 2)
-        x_exponent_2_comm_1 = setup.commit_g1(x_exponent_poly_2)
+        x_exponent_poly_2 = poly_util.x_exponent_poly(d - m + 2)
+        x_exponent_poly_2_comm_1 = setup.commit_g1(x_exponent_poly_2)
+        x_exponent_poly_2_comm_2 = setup.commit_g2(x_exponent_poly_2)
         # X^m
-        x_exponent_poly_3 = self.x_exponent_poly(m)
-        x_exponent_3_comm_1 = setup.commit_g1(x_exponent_poly_3)
+        x_exponent_poly_3 = poly_util.x_exponent_poly(m)
+        x_exponent_poly_3_comm_1 = setup.commit_g1(x_exponent_poly_3)
 
         w2_rhs1 = ec_lincomb([
             (b.G1, scalar_one),
-            (x_exponent_2_comm_1, gamma ** 2),
+            (x_exponent_poly_2_comm_1, gamma ** 2),
         ])
         w2_rhs2 = ec_lincomb([
             (R_comm_1, gamma ** 3),
-            (x_exponent_3_comm_1, -gamma ** 3),
+            (x_exponent_poly_3_comm_1, -gamma ** 2),
         ])
         w2_rhs3 = ec_lincomb([
             (R_comm_1, gamma),
             (b.G1, v3),
         ])
         assert b.pairing(x2, w2_comm_1) == b.pairing(z_I_comm_2, w2_rhs1) * b.pairing(
-            x_exponent_2_comm_1, w2_rhs2) * b.pairing(b.G2, w2_rhs3), "w1 paring check failed"
+            x_exponent_poly_2_comm_2, w2_rhs2) * b.pairing(b.G2, w2_rhs3), "w2 paring check failed"
         print("Finished to verify: w2")
 
         # 4. verify w3 for X = β
         w3_rhs1 = ec_lincomb([
             (D_comm_1, scalar_one),
             (w3_comm_1, beta),
-            (b.G1, -gamma * v4),
-            (b.G1, -v1),
+            (b.G1, -v1 - gamma * v4),
             (P_D_comm_1, gamma ** 2)
         ])
         w3_rhs2 = ec_lincomb([
@@ -143,11 +142,10 @@ class VerificationKey:
         w4_rhs = ec_lincomb([
             (E_comm_1, scalar_one),
             (w4_comm_1, zeta),
-            (P_E_comm_1, gamma)
+            (P_E_comm_1, gamma),
             (b.G1, -gamma * v5),
         ])
-        assert b.pairing(x2, w4_comm_1) == b.pairing(
-            b.G2, w4_rhs), "w4 paring check failed"
+        assert b.pairing(x2, w4_comm_1) == b.pairing(b.G2, w4_rhs), "w4 paring check failed"
         print("Finished to verify: w4")
 
         print("Finished to verify proof")
