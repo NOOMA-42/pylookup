@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
-from src.common_util.poly import Polynomial, Basis, InterpolationPoly, root_poly
+from src.common_util.poly import Polynomial, Basis, InterpolationPoly, root_poly, vanishing_poly
 from src.common_util.curve import Scalar
 from src.baloo.setup import *
 from src.baloo.transcript import Transcript, Message1, Message2, Message3
@@ -52,7 +52,7 @@ class Prover:
         self.roots_of_unity_N = Scalar.roots_of_unity(len(table))
         self.powers_of_x = setup.powers_of_x
         # vanishing polynomial: X^N - 1, N = len(table)
-        z_H_array = [Scalar(-1)] + [Scalar(0)] * (len(table) - 1) + [Scalar(1)]
+        z_H_array = vanishing_poly(len(table))
         # in coefficient form
         self.z_H_poly = Polynomial(z_H_array, Basis.MONOMIAL)
 
@@ -234,7 +234,7 @@ class Prover:
 
         V = Scalar.roots_of_unity(m)
         # X^m - 1
-        z_V_values = [Scalar(-1)] + [Scalar(0)] * (m - 1) + [Scalar(1)]
+        z_V_values = vanishing_poly(m)
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
         # z_I(0)
         z_I_at_0 = z_I_poly.coeff_eval(Scalar(0))

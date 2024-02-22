@@ -243,6 +243,11 @@ def root_poly(x_val: Scalar) -> Polynomial:
 def const_poly(x_val: Scalar) -> Polynomial:
     return Polynomial([x_val], Basis.MONOMIAL)
 
+# vanishing polynomial on multiplicative subgroup
+# z_H(X) = X^n - 1
+def vanishing_poly(n: int) -> Polynomial:
+    return [Scalar(-1)] + [Scalar(0)] * (n - 1) + [Scalar(1)]
+
 # construct MONOMIAL Polynomial with any X and Y values
 # Note: do not use with FFT due to X is probably not multiplicative subgroup
 class InterpolationPoly:

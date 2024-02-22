@@ -1,7 +1,7 @@
 import py_ecc.bn128 as b
 from dataclasses import dataclass
 from src.baloo.transcript import Transcript
-from src.common_util.poly import Polynomial, Basis
+from src.common_util.poly import Polynomial, Basis, vanishing_poly
 from src.common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
 
 @dataclass
@@ -53,7 +53,7 @@ class VerificationKey:
             (Q_D_comm_1, v4),
         ])
         # X^m - 1
-        z_V_values = [Scalar(-1)] + [Scalar(0)] * (m - 1) + [Scalar(1)]
+        z_V_values = vanishing_poly(m)
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
         z_V_poly_at_zeta = z_V_poly.coeff_eval(Scalar(zeta))
         print("z_V_poly_at_zeta: ", z_V_poly_at_zeta)

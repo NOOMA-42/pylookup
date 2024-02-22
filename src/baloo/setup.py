@@ -1,7 +1,7 @@
 import py_ecc.bn128 as b
 from dataclasses import dataclass
 from src.common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
-from src.common_util.poly import Polynomial, Basis
+from src.common_util.poly import Polynomial, Basis, vanishing_poly
 from src.baloo.verifier import VerificationKey
 from src.baloo.program import CommonPreprocessedInput
 
@@ -82,7 +82,7 @@ class Setup(object):
         table_len = len(public_table)
         # 2. Compute and output [z_H(x)] * G1
         # vanishing polynomial: X^N - 1, N = group_order_N - 1
-        z_H_array = [Scalar(-1)] + [Scalar(0)] * (table_len - 1) + [Scalar(1)]
+        z_H_array = vanishing_poly(table_len)
         # in coefficient form
         z_H_poly = Polynomial(z_H_array, Basis.MONOMIAL)
 
