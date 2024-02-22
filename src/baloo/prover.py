@@ -6,6 +6,8 @@ from src.baloo.setup import *
 from src.baloo.transcript import Transcript, Message1, Message2, Message3
 
 poly_util = PolyUtil()
+scalar_0 = Scalar(0)
+scalar_1 = Scalar(1)
 
 @dataclass
 class Proof:
@@ -102,12 +104,7 @@ class Prover:
     col[2] = M[2].index(1)
     col[3] = M[3].index(1)
     col: [0, 2, 0, 1]
-    ξ(xi): xi = root_of_unity ** col_i
-    get v(X)) values
-    v_values[0] = 1 / H_I[col[0]]
-    v_values[1] = 1 / H_I[col[1]]
-    v_values[2] = 1 / H_I[col[2]]
-    v_values[3] = 1 / H_I[col[3]]
+    ξ(xi): xi = H_I[col_i] = [ω^2, ω^6, ω^2, ω^3]
     """
     def round_1(self, lookup) -> Message1:
         setup = self.setup
@@ -231,25 +228,25 @@ class Prover:
         col = self.col
         H_I = self.H_I
         m = self.m
-        zero_poly = Polynomial([Scalar(0)], Basis.MONOMIAL)
+        zero_poly = Polynomial([scalar_0], Basis.MONOMIAL)
 
         V = Scalar.roots_of_unity(m)
         # X^m - 1
         z_V_values = poly_util.vanishing_poly(m)
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
         # z_I(0)
-        z_I_at_0 = z_I_poly.coeff_eval(Scalar(0))
+        z_I_at_0 = z_I_poly.coeff_eval(scalar_0)
         print("z_I_at_0: ", z_I_at_0, -z_I_at_0)
         # calculate D(X) = Σ_{0, m-1} μ_i(α) * τ^_{col(i)}(X)
         D_poly = zero_poly
         E_poly = zero_poly
 
         d_t_sum_poly = zero_poly
-        sum = Scalar(0)
+        sum = scalar_0
         for i in range(m):
             col_i = col[i]
             v_root = V[i]
-            v_root_poly = Polynomial([-Scalar(v_root), Scalar(1)], Basis.MONOMIAL)
+            v_root_poly = poly_util.root_poly(v_root)
             # ξ_i
             root = H_I[col_i]
             # X - ξ_i
@@ -335,14 +332,13 @@ class Prover:
         z_H_poly = self.z_H_poly
         d = len(setup.powers_of_x)
         m = self.m
-
         # calculate v1, v2, v3, v4, v5
         # v1 = e(α)
         v1 = E_poly.coeff_eval(alpha)
         # v2 = a(α)
         v2 = phi_poly.coeff_eval(alpha)
         # v3 = z_I(0)
-        v3 = z_I_poly.coeff_eval(Scalar(0))
+        v3 = z_I_poly.coeff_eval(scalar_0)
         # v4 = z_I(β)
         v4 = z_I_poly.coeff_eval(beta)
         # v5 = e(ζ)
@@ -352,9 +348,8 @@ class Prover:
         # P_E(X) = E(ζ) * (β - v(X)) + v(X) * z_I(β) / z_I(0) - z_V(ζ) * Q_E(X)
         D_poly_at_beta = D_poly.coeff_eval(beta)
         P_D_poly = t_I_poly * D_poly_at_beta - v2 - R_poly - Q_D_poly * v4
-        E_poly_at_zeta = E_poly.coeff_eval(zeta)
         z_V_poly_at_zeta = z_V_poly.coeff_eval(zeta)
-        P_E_poly = (v_poly * Scalar(-1) + beta) * E_poly_at_zeta + \
+        P_E_poly = (v_poly * (-scalar_1) + beta) * v5 + \
             v_poly * v4 / v3 - Q_E_poly * z_V_poly_at_zeta
 
         # X^(d-m+1)
@@ -365,7 +360,7 @@ class Prover:
         # calculate w1
         w1_poly = x_exponent_poly * \
             (E_poly - v1 + (phi_poly - v2) * gamma) / x_alpha_poly
-        x_poly = poly_util.root_poly(Scalar(0))
+        x_poly = poly_util.root_poly(scalar_0)
         # x^m
         x_m_exponent_poly = poly_util.x_exponent_poly(m)
         # calculate w2
@@ -383,8 +378,7 @@ class Prover:
         # X - ζ
         x_zeta_poly = poly_util.root_poly(Scalar(zeta))
         # calculate w4
-        w4_poly = (E_poly - v5) / x_zeta_poly + \
-            P_E_poly * gamma / x_zeta_poly
+        w4_poly = (E_poly - v5 + P_E_poly * gamma) / x_zeta_poly
 
         w1_comm_1 = setup.commit_g1(w1_poly)
         w2_comm_1 = setup.commit_g1(w2_poly)
