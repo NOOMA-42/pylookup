@@ -398,7 +398,3 @@ class Prover:
             w3_comm_1,
             w4_comm_1,
         )
-
-    # random linear combination
-    def rlc(self, term_1, term_2, term_3):
-        return term_1 + term_2 * self.gamma + term_3 * self.gamma * self.gamma
