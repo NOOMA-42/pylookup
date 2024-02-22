@@ -63,8 +63,8 @@ class VerificationKey:
         # calculate commitment [P_E(X)]1
         P_E_comm_1 = ec_lincomb([
             (b.G1, v5 * beta),
-            (E_comm_1, v5),
-            (v_comm_1, -v4 / v3),
+            (v_comm_1, -v5),
+            (v_comm_1, v4 / v3),
             (Q_E_comm_1, -z_V_poly_at_zeta),
         ])
 
@@ -142,7 +142,7 @@ class VerificationKey:
             (E_comm_1, scalar_one),
             (w4_comm_1, zeta),
             (P_E_comm_1, gamma),
-            (b.G1, -gamma * v5),
+            (b.G1, -v5),
         ])
         assert b.pairing(x2, w4_comm_1) == b.pairing(b.G2, w4_rhs), "w4 paring check failed"
         print("Finished to verify: w4")
