@@ -1,6 +1,5 @@
 import random
 from src.baloo.setup import Setup
-from src.baloo.program import CommonPreprocessedInput
 from src.baloo.prover import Prover
 
 # setup: public setup includes srs
@@ -11,7 +10,6 @@ def prover(setup: Setup, public_table: [any], lookup: [any]):
 
     print("table: ", public_table)
     print("lookup: ", lookup)
-    group_order_n = len(lookup)
 
     prover = Prover(setup, public_table)
     proof = prover.prove(lookup)

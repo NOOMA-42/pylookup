@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from src.common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
 from src.common_util.poly import Polynomial, Basis, vanishing_poly
 from src.baloo.verifier import VerificationKey
-from src.baloo.program import CommonPreprocessedInput
 
 @dataclass
 class Setup(object):
