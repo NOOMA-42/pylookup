@@ -35,8 +35,6 @@ class VerificationKey:
         pi_gamma = proof["pi_gamma"]
         a_0_comm_1 = proof["a_0_comm_1"]
 
-        # Vefify
-
         ### Check 1: round 2.11: A encodes the correct values ###
         print("=== Started Check 1: round 2.11: A encodes the correct values ===")
         comb = ec_lincomb([

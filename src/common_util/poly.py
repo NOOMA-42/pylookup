@@ -1,5 +1,6 @@
 from enum import Enum
 from numpy.polynomial import polynomial as P
+import numpy as np
 from src.common_util.curve import Scalar
 
 class Basis(Enum):
@@ -144,9 +145,9 @@ class Polynomial:
             if (self.basis == Basis.MONOMIAL):
                 c1 = self.values
                 c2 = [other]
-                res = P.polydiv(c1,c2)
+                quo, _ = P.polydiv(c1,c2)
                 return Polynomial(
-                    res,
+                    quo,
                     self.basis,
                 )
 
@@ -259,3 +260,68 @@ class Polynomial:
             return self.ifft()
         else:
             return self
+
+class PolyUtil:
+    # f(X) = X - a
+    def root_poly(self, x_val: Scalar) -> Polynomial:
+        return Polynomial([-x_val, Scalar(1)], Basis.MONOMIAL)
+
+    # f(X) = a
+    def const_poly(self, x_val: Scalar) -> Polynomial:
+        return Polynomial([x_val], Basis.MONOMIAL)
+
+    # vanishing polynomial on multiplicative subgroup
+    # z_H(X) = X^n - 1
+    def vanishing_poly(self, n: int) -> Polynomial:
+        return [Scalar(-1)] + [Scalar(0)] * (n - 1) + [Scalar(1)]
+
+    # generate polynomial: X^n
+    def x_exponent_poly(self, n: int) -> Polynomial:
+        values = [Scalar(0)] * (n - 1) + [Scalar(1)]
+        return Polynomial(values, Basis.MONOMIAL)
+
+# construct MONOMIAL Polynomial with any X and Y values
+# Note: do not use with FFT due to X is probably not multiplicative subgroup
+class InterpolationPoly:
+    n: int
+    X: list[Scalar]
+    Y: list[Scalar]
+    def __init__(self, X: list[Scalar], Y: list[Scalar]):
+        assert len(X) == len(Y), "Error: X should have the same length with Y"
+        self.n = len(X)
+        self.X = np.array(X)
+        self.Y = np.array(Y)
+        self.poly_util = PolyUtil()
+
+    # z_H(X) = (X - self.X[0])(X - self.X[1])(X - self.X[2])...
+    def vanishing_poly(self) -> Polynomial:
+        v_poly = self.poly_util.const_poly(Scalar(1))
+        for i in range(self.n):
+            v_poly *= self.poly_util.root_poly(self.X[i])
+        return v_poly
+
+    # compute the derivative
+    def vanishing_poly_diff(self) -> Polynomial:
+        v_poly = self.vanishing_poly()
+        v_diff_poly = self.poly_util.const_poly(Scalar(0))
+        for i in range(self.n):
+            v_diff_poly += v_poly / self.poly_util.root_poly(self.X[i])
+        return v_diff_poly
+
+    # Give i, return ith Lagrange polynomial L_i(X)
+    # L_i(X) = z_H(X) / z_H'(a_i) / (X - a_i)
+    def lagrange_poly(self, i: int) -> Polynomial:
+        v_poly = self.vanishing_poly()
+        v_diff_poly = self.vanishing_poly_diff()
+        x_val = self.X[i]
+        v_diff_poly_at_i = v_diff_poly.coeff_eval(x_val)
+        x_root_poly = self.poly_util.root_poly(x_val)
+        return v_poly / x_root_poly / v_diff_poly_at_i
+
+    # f(X) = Σ(L_i(X) * y_i)
+    def poly(self) -> Polynomial:
+        poly = self.poly_util.const_poly(Scalar(0))
+        for i in range(self.n):
+            lagrange_poly = self.lagrange_poly(i)
+            poly += lagrange_poly * self.Y[i]
+        return poly
