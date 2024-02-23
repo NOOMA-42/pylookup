@@ -58,7 +58,6 @@ class VerificationKey:
         z_V_values = poly_util.vanishing_poly(m)
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
         z_V_poly_at_zeta = z_V_poly.coeff_eval(Scalar(zeta))
-        print("d, m: ", d, m)
 
         # calculate commitment [P_E(X)]1
         P_E_comm_1 = ec_lincomb([

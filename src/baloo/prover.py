@@ -90,7 +90,6 @@ class Prover:
     k = len(I) = 3
     vanishing polynomial z_I(X) = (X - H_I_0)(X - H_I_1)(X - H_I_2)
                                 = (X - ω^2)(X - ω^3)(X - ω^6)
-
     M * t = lookup
     M = [
         [1, 0, 0],
@@ -116,7 +115,6 @@ class Prover:
         self.phi_poly = phi_poly.ifft()
         # commit phi(X) on G1
         self.phi_comm_1 = setup.commit_g1(self.phi_poly)
-        print("Commitment of phi(X): ", self.phi_comm_1)
         # remove duplicated elements
         t_values = list(set(lookup))
         # transform to Scalar
@@ -147,13 +145,12 @@ class Prover:
         # vanishing polynomial in coefficient form
         z_I_poly = H_I_interp_poly.vanishing_poly()
 
-        print("z_I_poly.values: ", z_I_poly.values)
         self.z_I_poly = z_I_poly
 
         print("col_values: ", col_values)
         self.col = col_values
         assert np.array_equal([t_values[elem] for elem in col_values], lookup)
-        print("v_values: ", v_values)
+
         v_poly = Polynomial(v_values, Basis.LAGRANGE)
         # refer to section 5. can not use FFT due to it's not in multiplicative subgroup
         t_interp_poly = InterpolationPoly(H_I, t_values)
@@ -184,7 +181,6 @@ class Prover:
     ξ_{col(i)}: h_i = H_I[col_i]
     normalized_lag_poly = τ_col(i)(X) / τ_col(i)(0)
                         = z_I(X) / z_I(0) * (-ξ_{col(i)}) / (X - ξ_{col(i)})
-
 
     Calculate R(X): Theorem 5 (Inner Product Polynomial Relation) on Baloo paper
     root = H_I[col_i]
@@ -236,11 +232,9 @@ class Prover:
         z_V_poly = Polynomial(z_V_values, Basis.MONOMIAL)
         # z_I(0)
         z_I_at_0 = z_I_poly.coeff_eval(scalar_0)
-        print("z_I_at_0: ", z_I_at_0, -z_I_at_0)
         # calculate D(X) = Σ_{0, m-1} μ_i(α) * τ^_{col(i)}(X)
         D_poly = zero_poly
         E_poly = zero_poly
-
         d_t_sum_poly = zero_poly
         sum = scalar_0
         for i in range(m):
@@ -259,7 +253,6 @@ class Prover:
             # μ_i(α)
             mu_poly_at_alpha = mu_poly.coeff_eval(alpha)
             normalized_lag_poly_at_beta = normalized_lag_poly.coeff_eval(beta)
-            print("mu_poly_at_alpha: ", alpha, mu_poly_at_alpha)
             # D(X) = Σ_i(μ_i(α) * normalized_lag_poly)
             D_poly += normalized_lag_poly * mu_poly_at_alpha
             # E(X) = Σ_i(μ_i(X) * normalized_lag_poly(β))
@@ -267,20 +260,15 @@ class Prover:
 
             a_i = mu_poly_at_alpha
             b_i = t_I_poly.coeff_eval(root)
-            print("a_i: ", a_i, -a_i)
-            print("b_i: ", b_i, -b_i)
             sum_accu = a_i * b_i
             sum += sum_accu
             poly_accu = normalized_lag_poly * sum_accu
             d_t_sum_poly += poly_accu
-        print("D_poly.values: ", D_poly.values)
+
         D_t_poly = D_poly * t_I_poly
-        print("D_t_poly.values: ", D_t_poly.values)
-        print("sum: ", sum)
         pha_poly_at_alpha = phi_poly.coeff_eval(alpha)
         assert sum == pha_poly_at_alpha, "should equal for sum == pha()"
         R_poly = d_t_sum_poly - pha_poly_at_alpha
-
         # Compute commitment:
         # Q_D(X) = (D(X) * t_I(X) - φ(α) - R(X)) / z_I(X)
         Q_D_poly = (D_t_poly - pha_poly_at_alpha - R_poly) / z_I_poly
