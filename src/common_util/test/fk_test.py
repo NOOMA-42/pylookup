@@ -4,7 +4,7 @@ from collections import Counter
 from src.cq.setup import Setup
 from src.common_util.poly import Polynomial, Basis
 from src.common_util.curve import Scalar
-from src.cq.fk import fk
+from src.common_util.fk import fk
 import time
 
 
