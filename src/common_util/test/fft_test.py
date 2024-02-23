@@ -1,7 +1,7 @@
 import numpy as np
 import py_ecc.bn128 as b
 from src.common_util.curve import Scalar
-from src.cq.fft import fft, ifft, ec_fft, ec_ifft, next_power_of_2, is_power_of_two
+from src.common_util.fft import fft, ifft, ec_fft, ec_ifft, next_power_of_2, is_power_of_two
 
 
 def ec_fft_test():
