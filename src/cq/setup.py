@@ -4,8 +4,8 @@ from src.common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
 from src.common_util.poly import Polynomial, Basis
 from src.cq.verifier import VerificationKey
 from src.cq.program import CommonPreprocessedInput
-from src.cq.fk import fk
-from src.cq.fft import ifft
+from src.common_util.fk import fk
+from src.common_util.fft import ifft
 
 @dataclass
 class Setup(object):
