@@ -116,6 +116,7 @@ class Polynomial:
                     self.basis,
                 )
 
+    # division without remainder
     def __truediv__(self, other):
         if isinstance(other, Polynomial):
             assert self.basis == other.basis
@@ -145,7 +146,8 @@ class Polynomial:
             if (self.basis == Basis.MONOMIAL):
                 c1 = self.values
                 c2 = [other]
-                quo, _ = P.polydiv(c1,c2)
+                quo, rx = P.polydiv(c1,c2)
+                assert list(rx) == [0]
                 return Polynomial(
                     quo,
                     self.basis,
