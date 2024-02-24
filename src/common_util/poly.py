@@ -151,6 +151,25 @@ class Polynomial:
                     self.basis,
                 )
 
+    def div_with_remainder(self, other):
+        assert isinstance(other, Polynomial)
+        assert self.basis == other.basis
+        if (self.basis == Basis.LAGRANGE):
+            assert len(self.values) == len(other.values)
+            return Polynomial(
+                [x / y for x, y in zip(self.values, other.values)],
+                self.basis,
+            )
+        if (self.basis == Basis.MONOMIAL):
+            qx, rx = P.polydiv(self.values, other.values)
+            return Polynomial(
+                qx,
+                self.basis,
+            ), Polynomial(
+                rx,
+                self.basis,
+            )
+
     def shift(self, shift: int):
         assert self.basis == Basis.LAGRANGE
         assert shift < len(self.values)
@@ -198,7 +217,7 @@ class Polynomial:
 
     def ifft(self):
         return self.fft(True)
-    
+
     # add two polynomial for all cases
     # this may be slower than the normal +
     def force_add(self, other):
@@ -248,7 +267,7 @@ class Polynomial:
             x_pow = x_pow * x
             result = result + coeffs[i] * x_pow
         return result
-    
+
     def eval(self, x: Scalar):
         if self.basis == Basis.LAGRANGE:
             return self.barycentric_eval(x)
