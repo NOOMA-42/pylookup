@@ -182,23 +182,13 @@ class Prover:
     normalized_lag_poly = τ_col(i)(X) / τ_col(i)(0)
                         = z_I(X) / z_I(0) * (-ξ_{col(i)}) / (X - ξ_{col(i)})
 
-    Calculate R(X): Theorem 5 (Inner Product Polynomial Relation) on Baloo paper
-    root = H_I[col_i]
-    a_i = μ_i(α)
-    b_i = t_I(root)
-    R(X) = Σ_i(a_i * b_i * normalized_lag_poly(root)) - Σ_i(a_i * b_i)
-
-    σ = Σ_i(a_i * b_i)
-    φ(X): Polynomial(lookup, Basis.MONOMIAL), lookup table interpolation polynomial
-    assert σ == φ(α)
-
-    Calculate Q_D(X), Q_E(X)
+    Calculate D(X), E(X)
     D(X) = Σ_i(μ_i(α) * normalized_lag_poly)
     E(X) = Σ_i(μ_i(X) * normalized_lag_poly(β))
 
-    Calculate Q_D(X)
+    Calculate Q_D(X) and R(X): Theorem 5 (Inner Product Polynomial Relation) on Baloo paper
     D(X) * t_I(X) - φ(α) - R(X) = z_I(X) * Q_D(X)
-    Q_D(X) = (D(X) * t_I(X) - φ(α) - R(X)) / z_I(X)
+    Q_D(X), R(X) = (D(X) * t_I(X) - φ(α)) / z_I(X)
 
     Calculate Q_E(X)
     1) Baloo paper uses this construction
@@ -235,8 +225,6 @@ class Prover:
         # calculate D(X) = Σ_{0, m-1} μ_i(α) * τ^_{col(i)}(X)
         D_poly = zero_poly
         E_poly = zero_poly
-        d_t_sum_poly = zero_poly
-        sum = scalar_0
         for i in range(m):
             col_i = col[i]
             v_root = V[i]
@@ -258,20 +246,11 @@ class Prover:
             # E(X) = Σ_i(μ_i(X) * normalized_lag_poly(β))
             E_poly += mu_poly * normalized_lag_poly_at_beta
 
-            a_i = mu_poly_at_alpha
-            b_i = t_I_poly.coeff_eval(root)
-            sum_accu = a_i * b_i
-            sum += sum_accu
-            poly_accu = normalized_lag_poly * sum_accu
-            d_t_sum_poly += poly_accu
-
         D_t_poly = D_poly * t_I_poly
         pha_poly_at_alpha = phi_poly.coeff_eval(alpha)
-        assert sum == pha_poly_at_alpha, "should equal for sum == pha()"
-        R_poly = d_t_sum_poly - pha_poly_at_alpha
         # Compute commitment:
-        # Q_D(X) = (D(X) * t_I(X) - φ(α) - R(X)) / z_I(X)
-        Q_D_poly = (D_t_poly - pha_poly_at_alpha - R_poly) / z_I_poly
+        # Q_D(X), R(X) = (D(X) * t_I(X) - φ(α)) / z_I(X)
+        Q_D_poly, R_poly = (D_t_poly - pha_poly_at_alpha).div_with_remainder(z_I_poly)
         # Q_E(X) = (E(X) * (β - v(X)) + v(X) * z_I(β) / z_I(0)) / z_V(X)
         z_I_at_beta = z_I_poly.coeff_eval(Scalar(beta))
         Q_E_poly = (E_poly * (v_poly * Scalar(-1) + beta) +
