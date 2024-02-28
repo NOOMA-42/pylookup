@@ -12,7 +12,8 @@ from src.common_util.univariatesumcheck import (
     construct_H_I,
     construct_Dx,
     construct_rho_col_j, 
-    prove as univariate_sumcheck_prove
+    prove as univariate_sumcheck_prove,
+    verify as univariate_sumcheck_verify
 )
 from src.common_util.lagrange import lagrange_basis
 from src.cq.setup import Setup # TODO: refactor to common_util
@@ -52,7 +53,6 @@ class UnivariateSumcheckTest(unittest.TestCase):
 
         V = Scalar.roots_of_unity(m) # set for mu
         H = Scalar.roots_of_unity(N) # set for rho
-        H = left_rotate_root_of_unity(H)
         alpha = Scalar(3)
         Dx = construct_Dx(M, V, H, a, alpha)
         # TODO: check this statement: A proof of formation of H_i requires caulk+ core. t is 2, 3, so H_i corresponding to their index are H[1], H[2]
@@ -85,9 +85,7 @@ class UnivariateSumcheckTest(unittest.TestCase):
         N = len(c) # table size
 
         V = Scalar.roots_of_unity(m) # set for mu
-        # V = left_rotate_root_of_unity(V)
         H = Scalar.roots_of_unity(N) # set for rho
-        # H = left_rotate_root_of_unity(H)
         alpha = Scalar(3)
         
         Dx = construct_Dx(M, V, H, a, alpha)
@@ -108,34 +106,20 @@ class UnivariateSumcheckTest(unittest.TestCase):
         setup = Setup.execute(4, 2, [1, 2], False) # FIXME: modify generate_srs and use it instead
         pi2 = univariate_sumcheck_prove(setup, Dx, t_x, phi_x, zI_x, alpha, N, m)
 
+    def test_verify(self) -> None:
+        m = len(M) # number of rows = number of mu
+        N = len(c) # table size
+        V = Scalar.roots_of_unity(m) # set for mu
+        H = Scalar.roots_of_unity(N) # set for rho
+        alpha = Scalar(3)
+        Dx = construct_Dx(M, V, H, a, alpha)        
+        zero_polynomial = Polynomial([Scalar(0)], Basis.MONOMIAL)
+        H_I = construct_H_I(H, M)
+        t_x = sum([lagrange_basis(i, H_I) * Scalar(e) for i, e in enumerate([2, 3])], zero_polynomial)
+        phi_x = sum([lagrange_basis(i, V) * Scalar(e) for i, e in enumerate([3, 2, 3])], zero_polynomial)
+        zI_x = construct_non_multiplicativegroup_vanishing_poly(H_I)
 
-    """ def test_lagrange_basis(self) -> None:
-        # public table
-        # table = [1...256]
-        table = []
-        for i in range(1, 257):
-            table.append(i)
-        print("table: ", table)
+        setup = Setup.execute(4, 2, [1, 2], False)
+        pi = univariate_sumcheck_prove(setup, Dx, t_x, phi_x, zI_x, alpha, N, m)
 
-        group_order_N = len(table)
-        # number of powers of tau
-        powers = group_order_N * 2
-        # do setup
-        setup = Setup.execute(powers, tau, table)
-
-        # Encode the matrix M to 
-        M = [
-            [0, 1, 0],
-            [1, 0, 0],
-            [0, 0, 1],
-        ]
-        col_mapping = create_col_mapping(M)
-        print(col_mapping)
-
-
-        # phi_x is encoding of "a" vector, aka the values be looked up
-        phi_x = Polynomial(list(map(Scalar, [3, 2, 3])), Basis.LAGRANGE)
-        # t_x is encoding of "t" vector, aka the unique value in a 
-        t_x = Polynomial(list(map(Scalar, [2, 3])), Basis.LAGRANGE)
-
-        z_I_x """
+        univariate_sumcheck_verify(pi, (t_x, zI_x), setup)

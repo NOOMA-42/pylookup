@@ -1,5 +1,6 @@
+import py_ecc.bn128 as b
 from src.common_util.poly import Polynomial, Basis
-from src.common_util.curve import Scalar
+from src.common_util.curve import Scalar, ec_lincomb
 from src.cq.setup import Setup
 from src.common_util.lagrange import lagrange_basis
 """ 
@@ -18,7 +19,6 @@ D(X )t(X ) − φ(α) = XR(X ) + zI (X )Q2(X )
 
 import numpy as np
 
-# TODO: refactor to baloo
 def create_col_mapping(M):
     """ 
     Input:
@@ -72,7 +72,6 @@ def construct_rho_col_j(col_mapping: list[int], H) -> list[Polynomial]:
     rho_col_j = [rho_col_j_unique[i] for i in col_mapping if i in rho_col_j_unique]
     return rho_col_j
 
-# TODO: refactor to baloo
 def construct_Dx(M: list[list], V: list[Scalar], H: list[Scalar], vec_a: list, alpha: Scalar) -> Polynomial:
     """
     Constructs D_x based on matrices M, V, H, and vector vec_a.
@@ -132,11 +131,10 @@ def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_
 
     """
     
-    # FIXME: ftt mind need to rotate as well
     # long division to get XR(X) and Q2(X)
     
     #phi_alpha = phi_x.barycentric_eval(alpha)
-    phi_alpha = phi_x.coeff_eval(alpha) # FIXME: root of unity might need to be rotated
+    phi_alpha = phi_x.coeff_eval(alpha)
     Q2_x, XR_x = ((D_x * t_x - phi_alpha)).div_with_remainder(zI_x)    
     x = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
     R_x = XR_x / x
@@ -146,9 +144,27 @@ def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_
     R = setup.commit_g1(R_x)
     R_hat = setup.commit_g1(R_hat_x)
     Q2 = setup.commit_g1(Q2_x)
-    pi2 = (D, R, R_hat, Q2)
-    return pi2
+    pi = (D, R, R_hat, Q2, phi_alpha) # since we only do unisumcheck, we output pi2 and phi_alpha together
+    return pi
 
-""" def verify():
-    D, tX, phi_alpha, zI = """
+def verify(pi, common_input, setup: Setup):
+    D, R, R_hat, Q2, phi_alpha = pi
+    t_X, Z_I = common_input
 
+    t = setup.commit_g1(t_X)
+    scalar_one_g1 = setup.commit_g1(Polynomial([Scalar(1)], Basis.MONOMIAL))
+    scalar_one_g2 = setup.commit_g2(Polynomial([Scalar(1)], Basis.MONOMIAL))
+    x = setup.commit_g2(Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL))
+    Z_I = setup.commit_g2(Z_I)
+
+    """
+    original pairing check is as follows
+    (b.pairing(t, D) - b.pairing(ec_lincomb([(scalar_one_g1, phi_alpha)]), scalar_one_g2)) \
+        == (b.pairing(R, x) + b.pairing(Q2, Z_I))
+    
+    1. the pairing input has to be G2, G1 in that order
+    2. + has to be * and - has to be moved to the other side
+    """
+
+    assert b.pairing(D, t) == \
+        (b.pairing(x, R) * b.pairing(Z_I, Q2) * b.pairing(scalar_one_g2, ec_lincomb([(scalar_one_g1, phi_alpha)])))
