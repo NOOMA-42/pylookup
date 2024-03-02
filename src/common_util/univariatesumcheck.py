@@ -139,16 +139,16 @@ def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_
     x = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
     R_x = XR_x / x
 
-    R_hat_x = x ** (N - m + 2)
+    # R_hat_x = x ** (N - m + 2)
     D = setup.commit_g2(D_x)
     R = setup.commit_g1(R_x)
-    R_hat = setup.commit_g1(R_hat_x)
+    # R_hat = setup.commit_g1(R_hat_x)
     Q2 = setup.commit_g1(Q2_x)
-    pi = (D, R, R_hat, Q2, phi_alpha) # since we only do unisumcheck, we output pi2 and phi_alpha together
+    pi = (D, R, Q2, phi_alpha) # since we only do unisumcheck, we output pi2 and phi_alpha together
     return pi
 
 def verify(pi, common_input, setup: Setup):
-    D, R, R_hat, Q2, phi_alpha = pi
+    D, R, Q2, phi_alpha = pi
     t_X, Z_I = common_input
 
     t = setup.commit_g1(t_X)

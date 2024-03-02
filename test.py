@@ -6,11 +6,15 @@ if __name__ == "__main__":
 
     # common util
     loader = unittest.TestLoader()
-    # lagrange
-    # util_suite = loader.discover(start_dir='./src/common_util', pattern='lagrange_test.py')
-    # lagrange
-    util_suite = loader.discover(start_dir='./src/common_util', pattern='univariatesumcheck_test.py')
     runner = unittest.TextTestRunner(verbosity=3)
+    
+    # univariatesumcheck
+    util_suite = loader.discover(start_dir='./src/common_util', pattern='univariatesumcheck_test.py')
     runner.run(util_suite)
 
-    # protocol    
+    # lagrange
+    #util_suite = loader.discover(start_dir='./src/common_util', pattern='lagrange_test.py')
+    #runner.run(util_suite)
+    
+    # multilinear
+

@@ -82,6 +82,9 @@ class Setup(object):
 
     @classmethod
     def execute(self, powers: int, tau: int, public_table: list, verbose: bool = True):
+        """  
+        you only need power and tau if you're not working on cq
+        """
         # 1. generate_srs: will do in the runtime
         self.generate_srs(powers, tau, verbose)
         # 2. Compute and output [ZV(x)] * G2

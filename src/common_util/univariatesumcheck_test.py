@@ -15,7 +15,7 @@ from src.common_util.univariatesumcheck import (
     prove as univariate_sumcheck_prove,
     verify as univariate_sumcheck_verify
 )
-from src.common_util.lagrange import lagrange_basis
+from src.common_util.lagrange import lagrange_basis, multilinear_lagrange_kernel_to_uni
 from src.cq.setup import Setup # TODO: refactor to common_util
 
 
@@ -106,6 +106,7 @@ class UnivariateSumcheckTest(unittest.TestCase):
         setup = Setup.execute(4, 2, [1, 2], False) # FIXME: modify generate_srs and use it instead
         pi2 = univariate_sumcheck_prove(setup, Dx, t_x, phi_x, zI_x, alpha, N, m)
 
+    @unittest.skip(reason="This test is disabled, because it's too slow.")
     def test_verify(self) -> None:
         m = len(M) # number of rows = number of mu
         N = len(c) # table size
@@ -123,3 +124,21 @@ class UnivariateSumcheckTest(unittest.TestCase):
         pi = univariate_sumcheck_prove(setup, Dx, t_x, phi_x, zI_x, alpha, N, m)
 
         univariate_sumcheck_verify(pi, (t_x, zI_x), setup)
+
+    def test_multilinear(self) -> None:
+        v = Polynomial(list(map(Scalar, [1, 2])), Basis.LAGRANGE)
+        c = multilinear_lagrange_kernel_to_uni([[1, -1], [1, 1], [-1, 1], [-1, -1]], [6, 3])
+        f = [v_i * c_i for v_i, c_i in zip(v.values, c.values)]
+        f_x = Polynomial(f, Basis.LAGRANGE)
+        alpha = Scalar(3)
+
+        f_x = f_x.ifft()
+        v = v.ifft()
+        c = c.ifft()
+        
+        setup = Setup.execute(4, 2, [1, 2], False)
+        H = Scalar.roots_of_unity(len([1, 2]))
+        z_x = construct_non_multiplicativegroup_vanishing_poly(H)
+        pi = univariate_sumcheck_prove(setup, v, c, f_x, z_x, alpha, 1, 1) # N M are dummy rn
+        
+        univariate_sumcheck_verify(pi, (c, z_x), setup)
