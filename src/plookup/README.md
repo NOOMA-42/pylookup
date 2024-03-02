@@ -6,7 +6,7 @@ A Python implementation of [plookup](https://eprint.iacr.org/2020/315.pdf) with 
 
 ### 1. Install poetry
 
-To get started, you'll need to have a Python version >= 3.8 and [`poetry`](https://python-poetry.org) installed:
+To get started, you'll need to have a Python version >= 3.11 and [`poetry`](https://python-poetry.org) installed:
 
 `curl -sSL https://install.python-poetry.org | python3 -`.
 
