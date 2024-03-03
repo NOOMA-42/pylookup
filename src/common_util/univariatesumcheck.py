@@ -3,7 +3,7 @@ from src.common_util.poly import Polynomial, Basis
 from src.common_util.curve import Scalar, ec_lincomb
 from src.cq.setup import Setup
 from src.common_util.lagrange import lagrange_basis
-""" 
+"""
 This implements generalized univariate sumcheck from Baloo, originally from RZ21
 
 refer to P.16
@@ -20,7 +20,7 @@ D(X )t(X ) − φ(α) = XR(X ) + zI (X )Q2(X )
 import numpy as np
 
 def create_col_mapping(M):
-    """ 
+    """
     Input:
         M = [
             [0, 1],
@@ -75,15 +75,15 @@ def construct_rho_col_j(col_mapping: list[int], H) -> list[Polynomial]:
 def construct_Dx(M: list[list], V: list[Scalar], H: list[Scalar], vec_a: list, alpha: Scalar) -> Polynomial:
     """
     Constructs D_x based on matrices M, V, H, and vector vec_a.
-    
+
     Parameters:
     - M: Lookup Matrix
     - V: Vector or list of 2nd set of roots of unity
     - H: Vector or list of 1st set of roots of unity
     - vec_a: Vector or list of values to be looked up
-    
+
     Returns:
-    - D_x: M(X, Y) evaluated partially at X = alpha 
+    - D_x: M(X, Y) evaluated partially at X = alpha
 
     Note:
     vec a       [a,  b,  a]
@@ -98,16 +98,16 @@ def construct_Dx(M: list[list], V: list[Scalar], H: list[Scalar], vec_a: list, a
     assert len(H) == len(M[0]), "H, corresponding with rho, its size must be equal to the number of columns in M"
     assert len(vec_a) == len(M), "size of a, the looked up value, must be equal to the number of rows in M"
     col_mapping = create_col_mapping(M)
-    
+
     rho_col_j = construct_rho_col_j(col_mapping, H)
     rho_col_j_to_multiply_0 = [i if isinstance(i, Scalar) else i.coeff_eval(0) for i in rho_col_j]
 
     mu_j = [lagrange_basis(i, V) for i in range(len(V))]
     mu_j = [i if isinstance(i, Scalar) else i.coeff_eval(alpha) for i in mu_j]
-    
+
     D_x = [rho_col_j[i] * mu_j[i] / rho_col_j_to_multiply_0[i] for i in range(len(mu_j))]
 
-    if (isinstance(rho_col_j_to_multiply_0[0], Scalar) and 
+    if (isinstance(rho_col_j_to_multiply_0[0], Scalar) and
         isinstance(mu_j[0], Scalar) and
         isinstance(rho_col_j[0], Scalar)
     ):
@@ -115,11 +115,11 @@ def construct_Dx(M: list[list], V: list[Scalar], H: list[Scalar], vec_a: list, a
     else:
         zero_polynomial = Polynomial([Scalar(0)], Basis.MONOMIAL)
     D_x = sum(D_x, zero_polynomial)
-    
+
     return D_x
 
 def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_x: Polynomial, alpha: Scalar, N: int, m: int):
-    """  
+    """
     Parameters:
     - setup: Setup
     - D_x: M(X, Y) evaluated partially at X = α
@@ -127,17 +127,18 @@ def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_
     - phi_x: φ(X), encoding of "a" vector, aka the values be looked up
     - zI_x: zI(X), vanishing polynomial of H_I
     - alpha: α
-    - N: table size = # of column of M 
+    - N: table size = # of column of M
 
     """
-    
+
     # long division to get XR(X) and Q2(X)
-    
+
     #phi_alpha = phi_x.barycentric_eval(alpha)
     phi_alpha = phi_x.coeff_eval(alpha)
-    Q2_x, XR_x = ((D_x * t_x - phi_alpha)).div_with_remainder(zI_x)    
-    x = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
-    R_x = XR_x / x
+    Q2_x, XR_x = ((D_x * t_x - phi_alpha)).div_with_remainder(zI_x)
+    # x = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
+    # R_x = XR_x / x
+    R_x = XR_x
 
     # R_hat_x = x ** (N - m + 2)
     D = setup.commit_g2(D_x)
@@ -161,10 +162,11 @@ def verify(pi, common_input, setup: Setup):
     original pairing check is as follows
     (b.pairing(t, D) - b.pairing(ec_lincomb([(scalar_one_g1, phi_alpha)]), scalar_one_g2)) \
         == (b.pairing(R, x) + b.pairing(Q2, Z_I))
-    
+
     1. the pairing input has to be G2, G1 in that order
     2. + has to be * and - has to be moved to the other side
     """
 
     assert b.pairing(D, t) == \
-        (b.pairing(x, R) * b.pairing(Z_I, Q2) * b.pairing(scalar_one_g2, ec_lincomb([(scalar_one_g1, phi_alpha)])))
+        (b.pairing(b.G2, R) * b.pairing(Z_I, Q2) *
+         b.pairing(scalar_one_g2, ec_lincomb([(scalar_one_g1, phi_alpha)])))
