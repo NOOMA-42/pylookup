@@ -129,8 +129,8 @@ class UnivariateSumcheckTest(unittest.TestCase):
         table = [1, 2, 3, 4]
         v = Polynomial(list(map(Scalar, table)), Basis.LAGRANGE)
         c = multilinear_lagrange_kernel_to_uni([[1, -1], [1, 1], [-1, 1], [-1, -1]], [6, 3])
-        f_x = Polynomial([Scalar(0)], Basis.MONOMIAL)
-        alpha = Scalar(0)
+        f_x = Polynomial([v_i * c_i for v_i, c_i in zip(v.values, c.values)], Basis.MONOMIAL)
+        alpha = Scalar(2)
         v = v.ifft()
         c = c.ifft()
         tau = 2
