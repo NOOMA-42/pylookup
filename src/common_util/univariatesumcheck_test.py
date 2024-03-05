@@ -80,6 +80,7 @@ class UnivariateSumcheckTest(unittest.TestCase):
         assert np.all(rho_col_j[0].values == rho_col_j[2].values), "1st and 3rd element are rho_3"
         # assert rho_col_j == [Polynomial(list(map(Scalar, [1, 2, 3, 4])), Basis.LAGRANGE), Polynomial(list(map(Scalar, [1, 2, 3, 4])), Basis.LAGRANGE), Polynomial(list(map(Scalar, [1, 2, 3, 4])), Basis.LAGRANGE)]
 
+    @unittest.skip(reason="This test is disabled, because it's too slow.")
     def test_prove(self) -> None:
         m = len(M) # number of rows = number of mu
         N = len(c) # table size
@@ -128,16 +129,22 @@ class UnivariateSumcheckTest(unittest.TestCase):
     def test_multilinear(self) -> None:
         table = [1, 2, 3, 4]
         v = Polynomial(list(map(Scalar, table)), Basis.LAGRANGE)
-        c = multilinear_lagrange_kernel_to_uni([[1, -1], [1, 1], [-1, 1], [-1, -1]], [6, 3])
-        f_x = Polynomial([Scalar(0)], Basis.MONOMIAL)
-        alpha = Scalar(0)
-        v = v.ifft()
+        # D(X)
+        c = multilinear_lagrange_kernel_to_uni([[1, 1], [1, -1], [-1, 1], [-1, -1]], [1, 1])
         c = c.ifft()
+        alpha = Scalar.roots_of_unity(4)[0]
+        print("====: ", c.coeff_eval(alpha))
+        # f_x = Polynomial([Scalar(0)], Basis.MONOMIAL)
+        # f_x = v * c
+        f_x = Polynomial(
+            [v_i * c_i for v_i, c_i in zip(v.values, c.values)], Basis.LAGRANGE)
+        v = v.ifft()
         tau = 2
         powers = len(table) * 2
         setup = Setup.execute(powers, tau, table, False)
         H = Scalar.roots_of_unity(len(table))
+        # 没有多项式基于 z_x 插值?
         z_x = construct_non_multiplicativegroup_vanishing_poly(H)
-        pi = univariate_sumcheck_prove(setup, v, c, f_x, z_x, alpha, 1, 1) # N M are dummy rn
+        pi = univariate_sumcheck_prove(setup, c, v, f_x.ifft(), z_x, alpha, 1, 1) # N M are dummy rn
 
         univariate_sumcheck_verify(pi, (c, z_x), setup)

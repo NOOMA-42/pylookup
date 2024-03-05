@@ -135,10 +135,18 @@ def prove(setup: Setup, D_x: Polynomial, t_x: Polynomial, phi_x: Polynomial, zI_
 
     #phi_alpha = phi_x.barycentric_eval(alpha)
     phi_alpha = phi_x.coeff_eval(alpha)
-    Q2_x, XR_x = ((D_x * t_x - phi_alpha)).div_with_remainder(zI_x)
-    # x = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
-    # R_x = XR_x / x
-    R_x = XR_x
+    #d_t_x = D_x * t_x
+    # phi_alpha2 = d_t_x.coeff_eval(Scalar(0))
+    #print("d_t_x.values: ", d_t_x.values)
+    #print("phi_alpha2: ", phi_alpha2)
+    Q2_x, XR_x = (D_x * t_x - phi_alpha).div_with_remainder(zI_x)
+    # Q2_x, XR_x = ((D_x * t_x - phi_alpha2)).div_with_remainder(zI_x)
+    # Q2_x, XR_x = d_t_x.div_with_remainder(zI_x)
+    x = Polynomial(list(map(Scalar, [0, 1])), Basis.MONOMIAL)
+    print("Q2_x.values: ", Q2_x.values)
+    print("XR_x.values: ", XR_x.values)
+    R_x = XR_x / x
+    # R_x = XR_x
 
     # R_hat_x = x ** (N - m + 2)
     D = setup.commit_g2(D_x)
