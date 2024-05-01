@@ -27,23 +27,22 @@ class Proof:
         proof["final_cts_comm"] = self.msg_2.final_cts_comm
         # msg_3
         proof["sumcheck_h_data"] = self.msg_3.sumcheck_h_data
-        proof["h_eval"] = self.msg_3.h_eval
         proof["E_eval"] = self.msg_3.E_eval
         proof["E_PIOP"] = self.msg_3.E_PIOP
         # msg_4
+        proof["S_comm"] = self.msg_4.S_comm
+        proof["RS_comm"] = self.msg_4.RS_comm
         proof["WS1_comm"] = self.msg_4.WS1_comm
         proof["WS2_comm"] = self.msg_4.WS2_comm
-        proof["RS_comm"] = self.msg_4.RS_comm
-        proof["S_comm"] = self.msg_4.S_comm
         # msg_5
+        proof["sumcheck_S_data"] = self.msg_5.sumcheck_S_data
+        proof["sumcheck_RS_data"] = self.msg_5.sumcheck_RS_data
         proof["sumcheck_WS1_data"] = self.msg_5.sumcheck_WS1_data
         proof["sumcheck_WS2_data"] = self.msg_5.sumcheck_WS2_data
-        proof["sumcheck_RS_data"] = self.msg_5.sumcheck_RS_data
-        proof["sumcheck_S_data"] = self.msg_5.sumcheck_S_data
+        proof["S_data"] = self.msg_5.S_data
+        proof["RS_data"] = self.msg_5.RS_data
         proof["WS1_data"] = self.msg_5.WS1_data
         proof["WS2_data"] = self.msg_5.WS2_data
-        proof["RS_data"] = self.msg_5.RS_data
-        proof["S_data"] = self.msg_5.S_data
         proof["E_eval2"] = self.msg_5.E_eval2
         proof["dim_eval"] = self.msg_5.dim_eval
         proof["read_ts_eval"] = self.msg_5.read_ts_eval
@@ -138,8 +137,8 @@ class Prover:
             final_cts = [0 for _ in range(2**self.l)]
             ts = 0
             for j in range(self.m):
-                E_val[j] = self.table.tables[j][i]
                 values[j] = self.indexes[j][i//self.k]
+                E_val[j] = self.table.tables[i][values[j]]
                 ts = final_cts[values[j]]
                 read_ts[j] = ts
                 write_cts[j] = ts+1
@@ -157,77 +156,92 @@ class Prover:
         return Message2(self.a_eval, self.a_PIOP, self.E_comm, self.read_comm, self.final_comm)
     
     def round_3(self):
+        # sum-check protocol on h(k) = eq(r, k) * g(...E_i(k))
         self.sumcheck_h_data = []
-        # Todo: sum-check protocol on h(k) = eq(r, k) * g(...E_i(k))
-        # will get self.h_eval = h(self.rz) and sumcheck data
+        k = [Scalar(0) for _ in range(self.logm)]
+        for i in range(self.logm):
+            # For each round, evaluate the ith param on 0, 1, 2
+            # eq_mle * g has degree 2 for each variable, so we need three points
+            # or evaluate at g, g^2, g^3, g^4=1?
+            vals = []
+            for j in range(3):
+                k[0] = Scalar(j)
+                # Calculate eq(r,k), E_i(k) for all possible k
+                # Todo: maybe can reduce duplicate?
+                val = Scalar(0)
+                for bits in range(2**(self.logm-i-1)):
+                    now = bits
+                    for pos in range(i+1, self.logm):
+                        k[pos] = Scalar(now%2)
+                        now /= 2
+                    E_eval = [self.setup.multivar_eval(E, k) for E in self.E_poly]
+                    val += self.setup.eq_mle(self.r, k) * self.table.g_func(E_eval)
+                vals.append(val)
+            self.sumcheck_h_data.append(vals)
+            k[i] = self.rz[i]
         self.E_eval = [self.setup.multivar_eval(E, self.rz) for E in self.E_poly]
         self.E_PIOP = [self.setup.PIOP_prove(e_poly, self.rz, e_eval) for (e_poly, e_eval) in zip(self.E_poly, self.E_eval)]
-        return Message3(self.sumcheck_h_data, self.h_eval, self.E_eval, self.E_PIOP)
+        return Message3(self.sumcheck_h_data, self.E_eval, self.E_PIOP)
     
     def round_4(self):
-        self.WS1_poly, self.WS2_poly, self.RS_poly, self.S_poly = [], [], [], []
-        self.WS1_comm, self.WS2_comm, self.RS_comm, self.S_comm = [], [], [], []
+        self.S_poly, self.RS_poly, self.WS1_poly, self.WS2_poly = [], [], [], []
+        self.S_comm, self.RS_comm, self.WS1_comm, self.WS2_comm = [], [], [], []
         for i in range(self.alpha):
-            WS1, WS2, RS, S = [], [], [], []
+            S, RS, WS1, WS2 = [], [], [], []
             for j in range(2**self.logm):
-                WS1.append((self.dim_poly[i].values[j], self.E_poly[i].values[j], self.write_poly[i].values[j]))
                 RS.append((self.dim_poly[i].values[j], self.E_poly[i].values[j], self.read_poly[i].values[j]))
+                WS1.append((self.dim_poly[i].values[j], self.E_poly[i].values[j], self.write_poly[i].values[j]))
             for j in range(2**self.l):
-                WS2.append((Scalar(j), Scalar(self.table.tables[i][j]), Scalar(0)))
                 S.append((Scalar(j), Scalar(self.table.tables[i][j]), self.final_poly[i].values[j]))
-            WS1_poly = self.grand_product_poly(WS1)
-            WS2_poly = self.grand_product_poly(WS1)
-            RS_poly = self.grand_product_poly(RS)
+                WS2.append((Scalar(j), Scalar(self.table.tables[i][j]), Scalar(0)))
             S_poly = self.grand_product_poly(S)
+            RS_poly = self.grand_product_poly(RS)
+            WS1_poly = self.grand_product_poly(WS1)
+            WS2_poly = self.grand_product_poly(WS2)
+            self.S_poly.append(S_poly)
+            self.RS_poly.append(RS_poly)
             self.WS1_poly.append(WS1_poly)
             self.WS2_poly.append(WS2_poly)
-            self.RS_poly.append(RS_poly)
-            self.S_poly.append(S_poly)
-            self.WS1_comm.append(self.setup.commit_g1(WS1_poly))
-            self.WS2_comm.append(self.setup.commit_g1(WS2_poly))
-            self.RS_comm.append(self.setup.commit_g1(RS_poly))
-            self.S_comm.append(self.setup.commit_g1(S_poly))
+            self.S_comm.append(self.setup.commit(S_poly))
+            self.RS_comm.append(self.setup.commit(RS_poly))
+            self.WS1_comm.append(self.setup.commit(WS1_poly))
+            self.WS2_comm.append(self.setup.commit(WS2_poly))
 
-        return Message4(self.WS1_comm, self.WS2_comm, self.RS_comm, self.S_comm)
+        return Message4(self.S_comm, self.RS_comm, self.WS1_comm, self.WS2_comm)
     
     def round_5(self):
-        self.sumcheck_WS1_data, self.sumcheck_WS2_data, self.sumcheck_RS_data, self.sumcheck_S_data = [], [], [], []
-        self.WS1_data, self.WS2_data, self.RS_data, self.S_data = [], [], [], []
+        self.sumcheck_S_data, self.sumcheck_RS_data, self.sumcheck_WS1_data, self.sumcheck_WS2_data = [], [], [], []
+        self.S_data, self.RS_data, self.WS1_data, self.WS2_data = [], [], [], []
         self.E_eval2, self.dim_eval, self.read_eval, self.final_eval = [], [], [], []
         self.E_PIOP2, self.dim_PIOP, self.read_PIOP, self.final_PIOP = [], [], [], []
         for i in range(self.alpha):
             # Todo: 
-            # For WS1 and RS
+            # For RS and WS1
             # run sumcheck protocol on g(k) = eq(r,k) * (fi(1,k)-fi(k,0)fi(k,1))
             # will get g(r') where len(r') = logm
             # warning! fi(1,k)-fi(k,0)fi(k,1) is not linear
-            # For WS2 and S
+            # For S and WS2
             # run sumcheck protocol with len(r') = l
+            self.sumcheck_S_data.append([])
+            self.sumcheck_RS_data.append([])
             self.sumcheck_WS1_data.append([])
             self.sumcheck_WS2_data.append([])
-            self.sumcheck_RS_data.append([])
-            self.sumcheck_S_data.append([])
-            self.S_data.append(GrandProductData(self.S_poly[i], self.r_prime2))
-            self.RS_data.append(GrandProductData(self.RS_poly[i], self.r_prime3))
-            self.WS1_data.append(GrandProductData(self.WS1_poly[i], self.r_prime4))
-            self.WS2_data.append(GrandProductData(self.WS2_poly[i], self.r_prime5))
-            self.E_eval2.append(self.setup.multivar_eval(self.E_poly[i], self.r_prime3))
-            self.dim_eval.append(self.setup.multivar_eval(self.dim_poly[i//self.k], self.r_prime3))
-            self.read_eval.append(self.setup.multivar_eval(self.read_poly[i], self.r_prime3))
-            self.final_eval.append(self.setup.multivar_eval(self.final_poly[i], self.r_prime2))
-            self.E_PIOP2.append(self.setup.PIOP_prove(self.E_poly[i], self.r_prime3, self.E_eval2[i]))
-            self.dim_PIOP.append(self.setup.PIOP_prove(self.dim_poly[i//self.k], self.r_prime3, self.dim_eval[i]))
-            self.read_PIOP.append(self.setup.PIOP_prove(self.read_poly[i], self.r_prime3, self.read_eval[i]))
-            self.final_PIOP.append(self.setup.PIOP_prove(self.final_poly[i], self.r_prime2, self.final_eval[i]))
+            self.S_data.append(GrandProductData(self.S_poly[i], self.r_prime2[i]))
+            self.RS_data.append(GrandProductData(self.RS_poly[i], self.r_prime3[i]))
+            self.WS1_data.append(GrandProductData(self.WS1_poly[i], self.r_prime4[i]))
+            self.WS2_data.append(GrandProductData(self.WS2_poly[i], self.r_prime5[i]))
+            self.E_eval2.append(self.setup.multivar_eval(self.E_poly[i], self.r_prime3[i]))
+            self.dim_eval.append(self.setup.multivar_eval(self.dim_poly[i//self.k], self.r_prime3[i]))
+            self.read_eval.append(self.setup.multivar_eval(self.read_poly[i], self.r_prime3[i]))
+            self.final_eval.append(self.setup.multivar_eval(self.final_poly[i], self.r_prime2[i]))
+            self.E_PIOP2.append(self.setup.PIOP_prove(self.E_poly[i], self.r_prime3[i], self.E_eval2[i]))
+            self.dim_PIOP.append(self.setup.PIOP_prove(self.dim_poly[i//self.k], self.r_prime3[i], self.dim_eval[i]))
+            self.read_PIOP.append(self.setup.PIOP_prove(self.read_poly[i], self.r_prime3[i], self.read_eval[i]))
+            self.final_PIOP.append(self.setup.PIOP_prove(self.final_poly[i], self.r_prime2[i], self.final_eval[i]))
 
-        # verifier checks the product
-        # WS1_data.product * WS2_data.product = RS_data.product * S_data.product
-        # verifier checks correctness of RS and S
-        # check that RS_f(0, r''')=H(dim(r'''),Ei(r'''),read_ts(r'''))
-        # check that S_f(0, r'')=H(identity(r''),eq(r'',r),final_cts(r''))
-        return Message5(self.sumcheck_WS1_data, self.sumcheck_WS2_data,
-                        self.sumcheck_RS_data, self.sumcheck_S_data,
-                        self.WS1_data, self.WS2_data, self.RS_data, self.S_data,
+        return Message5(self.sumcheck_S_data, self.sumcheck_RS_data,
+                        self.sumcheck_WS1_data, self.sumcheck_WS2_data,
+                        self.S_data, self.RS_data, self.WS1_data, self.WS2_data,
                         self.E_eval2, self.dim_eval, self.read_eval, self.final_eval,
                         self.E_PIOP2, self.dim_PIOP, self.read_PIOP, self.final_PIOP)
     

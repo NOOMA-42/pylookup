@@ -23,6 +23,14 @@ class Setup(object):
         return b.Z1
     
     @classmethod
+    def eq_mle(self, a: list[Scalar], b: list[Scalar]) -> Scalar:
+        assert(len(a) == len(b))
+        ret = Scalar(1)
+        for aa, bb in zip(a, b):
+            ret *= (aa*bb + (Scalar(1)-aa)*(Scalar(1)-bb))
+        return ret
+    
+    @classmethod
     def multivar_eval(self, poly: Polynomial, point: list[Scalar]) -> Scalar:
         # Todo
         return Scalar(0)

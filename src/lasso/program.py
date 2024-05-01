@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from src.common_util.curve import Scalar, G1Point, ec_lincomb
+from src.common_util.curve import Scalar, G1Point
 from src.common_util.poly import Polynomial
 
+# This is a simple SOS table that decompose the table 
 class SOSTable:
     l: int
     c: int
@@ -10,26 +11,26 @@ class SOSTable:
     tables: list[list[int]]
 
     def __init__(self, l: int, c: int, k: int, tables: list[list[int]]):
-        assert(len(tables) == k * c)
         self.l = l
         self.c = c
         self.k = k
         self.alpha = k * c
         self.tables = tables
+        assert(len(tables) == self.alpha)
 
-    def g_func(self, r: list[int]):
-        assert len(r) == self.c
+    def g_func(self, r: list[Scalar]):
+        assert(len(r) == self.alpha)
         # the g function
         # here we have g(r_1, ..., r_c) = 1 + r_1 + r_2 * 2**l + ... + r_c * 2**(l*(c-1))
         # represent the table [1, 2, ..., 2**(l*c)]
         # need to override this function
-        ret = 1
-        mul = 1
-        for i in range(self.c):
-            ret += self.tables[i][r[i]] * mul
-            mul *= (2**self.l)
+        ret = Scalar(1)
+        mul = Scalar(1)
+        for i in range(self.alpha):
+            ret += r[i] * mul
+            mul *= Scalar(2**self.l)
         return ret
-    
+
     def get_index(self, value: int):
         # need to override this function
         val = value - 1
@@ -68,30 +69,3 @@ def log_ceil(n: int):
 
 def Hash(element: tuple[Scalar, Scalar, Scalar], tau: Scalar, gamma: Scalar) -> Scalar:
     return element[0]*gamma*gamma + element[1]*gamma + element[2] - tau
-
-def aggregate(power: Scalar, items: list):
-    assert(len(items) > 0)
-    weight = power
-    result = items[0]
-    for item in items[1:]:
-        result += item * weight
-        weight *= power
-    return result
-
-def aggregate_poly(power: Scalar, polys: list[Polynomial]):
-    assert(len(polys) > 0)
-    weight = power
-    result = polys[0]
-    for poly in polys[1:]:
-        result = result.force_add(poly * weight)
-        weight *= power
-    return result
-
-def aggregate_comm(power: Scalar, comms: list[G1Point]) -> G1Point:
-    assert(len(comms) > 0)
-    weight = power
-    result = comms[0]
-    for comm in comms[1:]:
-        result = ec_lincomb([(result, 1), (comm, weight)])
-        weight *= power
-    return result
