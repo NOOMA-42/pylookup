@@ -2,9 +2,9 @@ import os
 import unittest
 import random
 import py_ecc.bn128 as b
-from common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
-from common_util.poly import Polynomial, Basis
-from common_util.kzg import Setup
+from src.common_util.curve import ec_lincomb, G1Point, G2Point, Scalar
+from src.common_util.poly import Polynomial, Basis
+from src.common_util.kzg import Setup
 #from common_util.fk20_single import fk20
 cwd = os.getcwd()
 

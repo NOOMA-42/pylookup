@@ -15,3 +15,6 @@ $ poetry run python3 test.py
 ```
 
 Folder `common_util` are modified based on [Plonkathon](https://github.com/0xPARC/plonkathon)
+
+## Acknowledgement
+MLE, Sumcheck, GKR implementation credits to [gkr](https://github.com/jeong0982/gkr) by Soowon
