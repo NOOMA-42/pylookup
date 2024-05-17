@@ -1,151 +1,104 @@
-
-#import blst
+from src.common_util.curve import Scalar
+from py_ecc.fields.field_elements import FQ as Field
 import py_ecc.bn128 as b
-from common_util.curve import Scalar
-from typing import List
-#P1_INF = blst.P1(bytes.fromhex("400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"))
+from src.common_util.curve import G1Point, Scalar
 
+PRIMITIVE_ROOT = 5
 
-def _simple_ft(vals, modulus, roots_of_unity):
-    L = len(roots_of_unity)
-    o = []
-    for i in range(L):
-        last = P1_INF if type(vals[0]) == blst.P1 else 0
-        for j in range(L):
-            if type(vals[0]) == blst.P1:
-                #last = b.add(last, b.multiply(vals[j], roots_of_unity[(i*j)%L]))
-                last.add(vals[j].dup().mul(roots_of_unity[(i*j)%L]))
-            else:
-                last += vals[j] * roots_of_unity[(i*j)%L]
-        o.append(last if type(last) == blst.P1 else last % modulus)
-    return o
+class Scalar(Field):
+    field_modulus = b.curve_order
 
-def _fft(vals, modulus, roots_of_unity):
-    if len(vals) <= 4 and type(vals[0]) != blst.P1:
-        #return vals
-        return _simple_ft(vals, modulus, roots_of_unity)
-    elif len(vals) == 1 and type(vals[0]) == blst.P1:
-        return vals
-    L = _fft(vals[::2], modulus, roots_of_unity[::2])
-    R = _fft(vals[1::2], modulus, roots_of_unity[::2])
-    o = [0 for i in vals]
-    for i, (x, y) in enumerate(zip(L, R)):
-        #y_times_root = b.multiply(y, roots_of_unity[i]) if type(y) == tuple else y*roots_of_unity[i]
-        y_times_root = y.dup().mult(roots_of_unity[i]) if type(y) == blst.P1 else y*roots_of_unity[i]
-        #o[i] = b.add(x, y_times_root) if type(x) == tuple else (x+y_times_root) % modulus
-        o[i] = x.dup().add(y_times_root) if type(y) == blst.P1 else (x+y_times_root) % modulus
-        #o[i+len(L)] = b.add(x, b.neg(y_times_root)) if type(x) == tuple else (x-y_times_root) % modulus
-        o[i+len(L)] = x.dup().add(y_times_root.dup().neg()) if type(x) == blst.P1 else (x-y_times_root) % modulus
-    return o
+    # Gets the first root of unity of a given group order
+    @classmethod
+    def root_of_unity(cls, group_order: int):
+        assert (cls.field_modulus - 1) % group_order == 0
+        return Scalar(PRIMITIVE_ROOT) ** ((cls.field_modulus - 1) // group_order)
 
-def expand_root_of_unity(root_of_unity, modulus):
+    # Gets the full list of roots of unity of a given group order
+    @classmethod
+    def roots_of_unity(cls, group_order: int):
+        o = [Scalar(1), cls.root_of_unity(group_order)]
+        while len(o) < group_order:
+            o.append(o[-1] * o[1])
+        return o
+
+def next_power_of_2(n):
     """
-    Build up roots of unity
-    [1 w w^2 w^3 w^4 w^5 w^6 w^7 1]
-    Inverse fft you reverse every element except the first
-    """
-    print('rootz', root_of_unity)
-    rootz = [Scalar(1)] + root_of_unity
-    while rootz[-1] != Scalar(1):
-        rootz.append((rootz[-1] * root_of_unity) % modulus)
-    return rootz
+    Get the next power of 2, for example if n = 5, then it will return 8
 
-def fft(vals, modulus, root_of_unity: List[Scalar], inv=False):
-    rootz = expand_root_of_unity(root_of_unity, modulus)
-    # Fill in vals with zeroes if needed
-    if len(rootz) > len(vals) + 1:
-        vals = vals + [0] * (len(rootz) - len(vals) - 1)
-    if inv:
-        # Inverse FFT
-        invlen = pow(len(vals), modulus-2, modulus)
-        if type(vals[0]) == blst.P1:
-            return [x.dup().mult(invlen) for x in  
-                    _fft(vals, modulus, rootz[:0:-1])]
-        else:
-            return [(x*invlen) % modulus for x in
-                    _fft(vals, modulus, rootz[:0:-1])]
+    :param n: The number to be processed.
+    """
+    return 1 if n == 0 else 2**(n - 1).bit_length()
+
+
+def is_power_of_two(n):
+    """
+    Check if a given number is a power of two.
+
+    :param n: The number to be checked.
+    :return: True if n is a power of two, False otherwise.
+    """
+    if n <= 0:
+        return False
     else:
-        # Regular FFT
-        return _fft(vals, modulus, rootz[:-1])
+        return (n & (n - 1)) == 0
 
-def test_fft(vals, modulus, roots_of_unity: List[Scalar], inv=False):
-    # rootz = expand_root_of_unity(roots_of_unity, modulus)
-    roots = [x.n for x in roots_of_unity]
-    # Fill in vals with zeroes if needed
-    if len(roots) > len(vals) + 1:
-        vals = vals + [0] * (len(roots) - len(vals) - 1)
+def fft(values: list[Scalar], inv=False):
+    def _fft(vals, modulus, roots_of_unity):
+        if len(vals) == 1:
+            return vals
+        L = _fft(vals[::2], modulus, roots_of_unity[::2])
+        R = _fft(vals[1::2], modulus, roots_of_unity[::2])
+        o = [0] * len(vals)
+        for i, (x, y) in enumerate(zip(L, R)):
+            y_times_root = y * roots_of_unity[i]
+            o[i] = (x + y_times_root) % modulus
+            o[i + len(L)] = (x - y_times_root) % modulus
+        return o
+
+    assert is_power_of_two(len(values)), "fft: values length should be powers of 2"
+    roots = [x.n for x in Scalar.roots_of_unity(len(values))]
+    o, nvals = Scalar.field_modulus, [x.n for x in values]
     if inv:
         # Inverse FFT
-        invlen = Scalar(1) / len(self.values) # Recall Fermat's Little Theorem, you may also use pow(len(vals), modulus-2, modulus).
+        invlen = Scalar(1) / len(values)
         reversed_roots = [roots[0]] + roots[1:][::-1]
-        return [Scalar(x) * invlen for x in _fft(vals, modulus, rootz[:0:-1])]
+        return [Scalar(x) * invlen for x in _fft(nvals, o, reversed_roots)]
     else:
         # Regular FFT
-        return _fft(vals, modulus, rootz[:-1])
+        return [Scalar(x) for x in _fft(nvals, o, roots)]
 
-#Note on call hierarchy: the project is not using the functions below.
 
-# Evaluates f(x) for f in evaluation form
-def inv_fft_at_point(vals, modulus, root_of_unity, x):
-    if len(vals) == 1:
-        return vals[0]
-    # 1/2 in the field
-    half = (modulus + 1)//2
-    # 1/w
-    inv_root = pow(root_of_unity, len(vals)-1, modulus)
-    # f(-x) in evaluation form
-    f_of_minus_x_vals = vals[len(vals)//2:] + vals[:len(vals)//2]
-    # e(x) = (f(x) + f(-x)) / 2 in evaluation form
-    evens = [(f+g) * half % modulus for f,g in zip(vals, f_of_minus_x_vals)]
-    # o(x) = (f(x) - f(-x)) / 2 in evaluation form
-    odds = [(f-g) * half % modulus for f,g in zip(vals, f_of_minus_x_vals)]
-    # e(x^2) + coordinate * x * o(x^2) in evaluation form
-    comb = [(o * x * inv_root**i + e) % modulus for i, (o, e) in enumerate(zip(odds, evens))]
-    return inv_fft_at_point(comb[:len(comb)//2], modulus, root_of_unity ** 2 % modulus, x**2 % modulus)
+def ifft(values: list[Scalar]):
+    return fft(values, True)
 
-def shift_domain(vals, modulus, root_of_unity, factor):
-    if len(vals) == 1:
-        return vals
-    # 1/2 in the field
-    half = (modulus + 1)//2
-    # 1/w
-    inv_factor = pow(factor, modulus - 2, modulus)
-    half_length = len(vals)//2
-    # f(-x) in evaluation form
-    f_of_minus_x_vals = vals[half_length:] + vals[:half_length]
-    # e(x) = (f(x) + f(-x)) / 2 in evaluation form
-    evens = [(f+g) * half % modulus for f,g in zip(vals, f_of_minus_x_vals)]
-    print('e', evens)
-    # o(x) = (f(x) - f(-x)) / 2 in evaluation form
-    odds = [(f-g) * half % modulus for f,g in zip(vals, f_of_minus_x_vals)]
-    print('o', odds)
-    shifted_evens = shift_domain(evens[:half_length], modulus, root_of_unity ** 2 % modulus, factor ** 2 % modulus)
-    print('se', shifted_evens)
-    shifted_odds = shift_domain(odds[:half_length], modulus, root_of_unity ** 2 % modulus, factor ** 2 % modulus)
-    print('so', shifted_odds)
-    return (
-        [(e + inv_factor * o) % modulus for e, o in zip(shifted_evens, shifted_odds)] + 
-        [(e - inv_factor * o) % modulus for e, o in zip(shifted_evens, shifted_odds)]
-    )
 
-def shift_poly(poly, modulus, factor):
-    factor_power = 1
-    inv_factor = pow(factor, modulus - 2, modulus)
-    o = []
-    for p in poly:
-        o.append(p * factor_power % modulus)
-        factor_power = factor_power * inv_factor % modulus
-    return o
+def ec_fft(values: list[G1Point], inv=False):
+    def _fft(vals: list[G1Point], modulus, roots_of_unity):
+        if len(vals) == 1:
+            return vals
+        L = _fft(vals[::2], modulus, roots_of_unity[::2])
+        R = _fft(vals[1::2], modulus, roots_of_unity[::2])
+        o = [0] * len(vals)
+        for i, (x, y) in enumerate(zip(L, R)):
+            y_times_root = b.multiply(y, roots_of_unity[i])
+            o[i] = b.add(x, y_times_root)
+            o[i + len(L)] = b.add(x, b.neg(y_times_root))
+        return o
 
-def mul_polys(a, b, modulus, root_of_unity):
-    rootz = [1, root_of_unity]
-    while rootz[-1] != 1:
-        rootz.append((rootz[-1] * root_of_unity) % modulus)
-    if len(rootz) > len(a) + 1:
-        a = a + [0] * (len(rootz) - len(a) - 1)
-    if len(rootz) > len(b) + 1:
-        b = b + [0] * (len(rootz) - len(b) - 1)
-    x1 = _fft(a, modulus, rootz[:-1])
-    x2 = _fft(b, modulus, rootz[:-1])
-    return _fft([(v1*v2)%modulus for v1,v2 in zip(x1,x2)],
-               modulus, rootz[:0:-1])
+    assert is_power_of_two(
+        len(values)), "ec_fft: values length should be powers of 2"
+    roots = [x.n for x in Scalar.roots_of_unity(len(values))]
+    o, nvals = Scalar.field_modulus, values
+    if inv:
+        # Inverse FFT
+        invlen = (Scalar(1) / len(values)).n
+        reversed_roots = [roots[0]] + roots[1:][::-1]
+        return [b.multiply(x, invlen) for x in _fft(nvals, o, reversed_roots)]
+    else:
+        # Regular FFT
+        return _fft(nvals, o, roots)
+
+
+def ec_ifft(values: list[G1Point]):
+    return ec_fft(values, True)
