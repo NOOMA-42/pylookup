@@ -1,16 +1,16 @@
-# MLE sumcheck instead of binary
-from src.common_util.poly import Polynomial
+# Code copied from https://github.com/jeong0982/gkr
+#mle sumcheck instead of binary
+from mle_poly import polynomial, generate_binary, eval_univariate
 from src.common_util.curve import Scalar
-from src.common_util.mle import generate_binary
-from typing import Callable
-from ethsnarks import mimc
+from src.common_util.transcript import CommonTranscript
+from util import *
 
-def prove_sumcheck(g: Polynomial, v: int, start: int):
+def prove_sumcheck(g: polynomial, v: int, start: int):
     proof = []
     r = []
     # first round
     # g1(X1)=∑(x2,⋯,xv)∈{0,1}^v g(X_1,x_2,⋯,x_v)    
-    g_1 = Polynomial([])
+    g_1 = polynomial([])
     assignments = generate_binary(v - 1)
     for assignment in assignments:
         g_1_sub = polynomial(g.terms[:], g.constant)
@@ -40,7 +40,7 @@ def prove_sumcheck(g: Polynomial, v: int, start: int):
             res_g_j += g_j_sub
         proof.append(res_g_j.get_all_coefficients())
 
-        r_n = field.FQ(mimc.mimc_hash(list(map(lambda x : int(x), proof[len(proof) - 1]))))
+        r_n = Scalar(mimc.mimc_hash(list(map(lambda x : int(x), proof[len(proof) - 1]))))
         r.append(r_n)
 
     g_v = polynomial(g.terms[:], g.constant)
@@ -49,23 +49,23 @@ def prove_sumcheck(g: Polynomial, v: int, start: int):
         g_v = g_v.eval_i(r_i, idx)
     proof.append(g_v.get_all_coefficients())
 
-    r_v = field.FQ(mimc.mimc_hash(list(map(lambda x : int(x), proof[len(proof) - 1]))))
+    r_v = Scalar(mimc.mimc_hash(list(map(lambda x : int(x), proof[len(proof) - 1]))))
     r.append(r_v)
 
     return proof, r
 
-def verify_sumcheck(claim: field.FQ, proof: list[list[field.FQ]], r, v: int):
+def verify_sumcheck(claim: Scalar, proof: list[list[Scalar]], r, v: int):
     bn = len(proof)
-    if(v == 1 and (eval_univariate(proof[0], field.FQ.zero()) + eval_univariate(proof[0], field.FQ.one())) == claim):
+    if(v == 1 and (eval_univariate(proof[0], Scalar.zero()) + eval_univariate(proof[0], Scalar.one())) == claim):
         return True
     expected = claim
     for i in range(bn):
-        q_zero = eval_univariate(proof[i], field.FQ.zero())
-        q_one = eval_univariate(proof[i], field.FQ.one())
+        q_zero = eval_univariate(proof[i], Scalar.zero())
+        q_one = eval_univariate(proof[i], Scalar.one())
 
         if q_zero + q_one != expected:
             return False
-        if field.FQ(mimc.mimc_hash(list(map(lambda x : int(x), proof[i])))) != r[i]:
+        if Scalar(mimc.mimc_hash(list(map(lambda x : int(x), proof[i])))) != r[i]:
             return False
         expected = eval_univariate(proof[i], r[i])
 
