@@ -189,10 +189,10 @@ class polynomial:
         exp = p.get_expansion()
         return list(reversed(exp.coeffs))
 
-    def get_expansion(self):
+    def get_expansion(self) -> 'UnivariateExpansion':
         """  
         Expand polynomial to univariate expansion
-        Note: 5 * ((2 * x_1 + 1) * (3 * x_2 + 4)) + 6 expands to 20 * x^0 + 55 * x^1 + 30 * x^2.
+        Note: 5 * ((2 * x_1 + 1) * (3 * x_2 + 4)) expands to 20 * x^0 + 55 * x^1 + 30 * x^2.
         """
         res = UnivariateExpansion([Scalar.zero()], 0)
         for t in self.terms:
@@ -334,6 +334,8 @@ def eval_ext(f: Callable[[list[Scalar]], Scalar], r: list[Scalar]) -> Scalar:
 def eval_expansion(f: list[list[Scalar]], r: list[Scalar]) -> Scalar:
     """ 
     Evaluate multivariate polynomial expansion at point r 
+    input:  [30, 1, 1], [40, 1, 0], [15, 0, 1], [26, 0, 0]
+        representing 30 x1 * x2 + 40 x1 + 15 x2 + 26
     """
     assert (len(r) + 1 == len(f[0]))
     res = Scalar.zero()

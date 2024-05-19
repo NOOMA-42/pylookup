@@ -24,7 +24,7 @@ def prove_sumcheck(g: polynomial, v: int, start: int):
         g_1 += g_1_sub
     proof.append(g_1.get_all_coefficients())
 
-    r_1 = Scalar(sum(list(map(lambda x : int(x), g_1.get_all_coefficients()))))
+    r_1 = Scalar(sum(list(map(lambda x : int(x), g_1.get_all_coefficients())))) # FIX: sum in this line should be hash
     r.append(r_1)
 
     # 1 < j < v round
