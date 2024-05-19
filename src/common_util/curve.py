@@ -13,6 +13,9 @@ class Scalar(Field):
     _COUNTS = None
     field_modulus = b.curve_order
 
+    def __hash__(self):
+        return hash((self.n, self.field_modulus))
+
     @classmethod
     def _disable_counting(cls):
         cls._COUNTS = None

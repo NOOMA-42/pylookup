@@ -1,7 +1,7 @@
 # Code copied from https://github.com/jeong0982/gkr
 from src.common_util.curve import Scalar
 from typing import Callable
-from util import length_expansion
+from src.common_util.util import length_expansion
 
 class term:
     def __init__(self, coeff: Scalar, i: int, const: Scalar) -> None:
@@ -25,16 +25,29 @@ class term:
         if isinstance(other, Scalar):
             return term(self.coeff * other, self.x_i, self.const * other)
 
+    def __str__(self):
+        return f"({self.coeff} * x_{self.x_i} + {self.const})"
+
+    def __repr__(self):
+        return self.__str__()
+    
 class monomial:
     def __init__(self, coeff: Scalar, terms: list[term]) -> None:
         self.terms = terms
         self.coeff = coeff
 
-    def mult(self, n):
-        self.coeff *= n
-
     def __mul__(self, other):
         return monomial(self.coeff * other.coeff, self.terms + other.terms)
+
+    def __str__(self):
+        terms_str = " * ".join([str(term) for term in self.terms])
+        return f"{self.coeff} * ({terms_str})"
+
+    def __repr__(self):
+        return self.__str__()
+    
+    def mult(self, n):
+        self.coeff *= n
 
     def apply(self):
         res = self.coeff
@@ -63,7 +76,7 @@ class monomial:
                 res *= res_t
         return res
     
-    def get_expansion(self):
+    def get_expansion(self) -> 'UnivariateExpansion':
         res = self.terms[0].convert() * self.coeff
         if len(self.terms) == 1:
             return res
@@ -71,7 +84,6 @@ class monomial:
             for t in self.terms[1:]:
                 res *= t
             return res
-
 
 class polynomial:
     def __init__(self, terms: list[monomial], c=Scalar.zero()) -> None:
@@ -96,6 +108,9 @@ class polynomial:
         return polynomial(new_terms, new_constant)
     
     def eval_i(self, x_i: Scalar, i: int):
+        """  
+        evaluate valuable index i with x_i
+        """
         new_terms_poly = []
         new_constant = self.constant
         for mono in self.terms:
@@ -137,6 +152,14 @@ class polynomial:
             return False
 
     def apply_all(self):
+        """  
+        Simplify polynomial
+        
+        Note:
+        p1 can be simplified to p2
+        p1: 6 * ((3 * x_1 + 4) * (1 * x_1 + 2)) + 3 * ((0 * x_1 + 5) * (1 * x_1 + 2)) + 0
+        p2: 6 * ((3 * x_1 + 4) * (1 * x_1 + 2)) + 15 * ((1 * x_1 + 2)) + 0
+        """
         new_terms = []
         new_const = self.constant
         for t in self.terms:
@@ -167,10 +190,21 @@ class polynomial:
         return list(reversed(exp.coeffs))
 
     def get_expansion(self):
+        """  
+        Expand polynomial to univariate expansion
+        Note: 5 * ((2 * x_1 + 1) * (3 * x_2 + 4)) + 6 expands to 20 * x^0 + 55 * x^1 + 30 * x^2.
+        """
         res = UnivariateExpansion([Scalar.zero()], 0)
         for t in self.terms:
             res += t.get_expansion()
         return res
+
+    def __str__(self):
+        terms_str = " + ".join([str(term) for term in self.terms])
+        return f"{terms_str} + {self.constant}"
+
+    def __repr__(self):
+        return self.__str__()
 
 class UnivariateExpansion:
     def __init__(self, coeffs: list[Scalar], deg: int) -> None:
@@ -200,6 +234,12 @@ class UnivariateExpansion:
             return UnivariateExpansion(list(map(lambda x: x * other, self.coeffs)), self.deg)
         else:
             raise NotImplementedError
+
+    def __str__(self):
+        return " + ".join([f"{self.coeffs[i]}*x^{i}" for i in range(self.deg + 1)])
+
+    def __repr__(self):
+        return f"UnivariateExpansion(coeffs={self.coeffs}, deg={self.deg})"
 
 # [[coeff, deg(x_1), ... , deg(x_v)], ...]
 class MultivariateExpansion:
@@ -284,7 +324,7 @@ def chi_w_from_k(w: list[Scalar], k: int):
     mono = monomial(Scalar.one(), prod)
     return mono
 
-def eval_ext(f: Callable[[list[Scalar]], Scalar], r: list[Scalar]):
+def eval_ext(f: Callable[[list[Scalar]], Scalar], r: list[Scalar]) -> Scalar:
     w = generate_binary(len(r))
     acc = Scalar.zero()
     for w_i in w:
@@ -292,6 +332,9 @@ def eval_ext(f: Callable[[list[Scalar]], Scalar], r: list[Scalar]):
     return acc
 
 def eval_expansion(f: list[list[Scalar]], r: list[Scalar]) -> Scalar:
+    """ 
+    Evaluate multivariate polynomial expansion at point r 
+    """
     assert (len(r) + 1 == len(f[0]))
     res = Scalar.zero()
     for t in f:
@@ -304,11 +347,23 @@ def eval_expansion(f: list[list[Scalar]], r: list[Scalar]) -> Scalar:
         res += subres
     return res
 
-# return expansion of multivariate polynomial
 def get_multi_ext(f: Callable[[list[Scalar]], Scalar], v: int) -> list[list[Scalar]]:
+    """
+    Return expansion of multivariate polynomial
+    
+    Parameters:
+    input: f()=5 * ((2 * x_1 + 1) * (3 * x_2 + 4)) + 6
+        this input expands to 30 x1 * x2 + 40 x1 + 15 x2 + 26
+    output:  [30, 1, 1], [40, 1, 0], [15, 0, 1], [26, 0, 0]
+    
+    Note: 
+    coefficient 30, 1 x1, 1 x2 
+    """
     w_set = generate_binary(v)
     ext_f = []
     res = []
+    
+    # get multilinear extension lagrange basis
     for w in w_set:
         res = chi_w(w)
         if f(w) == Scalar.zero():

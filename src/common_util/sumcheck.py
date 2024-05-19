@@ -1,11 +1,15 @@
 # Code copied from https://github.com/jeong0982/gkr
 #mle sumcheck instead of binary
-from mle_poly import polynomial, generate_binary, eval_univariate
+from src.common_util.mle_poly import polynomial, generate_binary, eval_univariate
 from src.common_util.curve import Scalar
 from src.common_util.transcript import CommonTranscript
-from util import *
+from src.common_util.util import *
 
 def prove_sumcheck(g: polynomial, v: int, start: int):
+    """
+    v: number of variables
+    start: index to start from e.g. x_5: evaluate g at x_5, x_6, ... x_v
+    """
     proof = []
     r = []
     # first round
@@ -20,7 +24,7 @@ def prove_sumcheck(g: polynomial, v: int, start: int):
         g_1 += g_1_sub
     proof.append(g_1.get_all_coefficients())
 
-    r_1 = Scalar(mimc.mimc_hash(list(map(lambda x : int(x), g_1.get_all_coefficients()))))
+    r_1 = Scalar(sum(list(map(lambda x : int(x), g_1.get_all_coefficients()))))
     r.append(r_1)
 
     # 1 < j < v round
@@ -40,7 +44,7 @@ def prove_sumcheck(g: polynomial, v: int, start: int):
             res_g_j += g_j_sub
         proof.append(res_g_j.get_all_coefficients())
 
-        r_n = Scalar(mimc.mimc_hash(list(map(lambda x : int(x), proof[len(proof) - 1]))))
+        r_n = Scalar(sum(list(map(lambda x : int(x), proof[len(proof) - 1]))))
         r.append(r_n)
 
     g_v = polynomial(g.terms[:], g.constant)
@@ -49,7 +53,7 @@ def prove_sumcheck(g: polynomial, v: int, start: int):
         g_v = g_v.eval_i(r_i, idx)
     proof.append(g_v.get_all_coefficients())
 
-    r_v = Scalar(mimc.mimc_hash(list(map(lambda x : int(x), proof[len(proof) - 1]))))
+    r_v = Scalar(sum(list(map(lambda x : int(x), proof[len(proof) - 1]))))
     r.append(r_v)
 
     return proof, r
@@ -65,7 +69,7 @@ def verify_sumcheck(claim: Scalar, proof: list[list[Scalar]], r, v: int):
 
         if q_zero + q_one != expected:
             return False
-        if Scalar(mimc.mimc_hash(list(map(lambda x : int(x), proof[i])))) != r[i]:
+        if Scalar(sum(list(map(lambda x : int(x), proof[i])))) != r[i]:
             return False
         expected = eval_univariate(proof[i], r[i])
 
