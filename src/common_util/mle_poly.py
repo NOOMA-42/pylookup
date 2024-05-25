@@ -91,25 +91,38 @@ class polynomial:
         self.constant = c
 
     def __add__(self, other):
-        return polynomial(self.terms + other.terms, self.constant + other.constant)
+        if isinstance(other, polynomial):
+            return polynomial(self.terms + other.terms, self.constant + other.constant)
+        else:
+            assert isinstance(other, Scalar)
+            return polynomial(self.terms, self.constant + other)
     
     def __mul__(self, other):
-        new_terms = []
-        for a in self.terms:
+        if isinstance(other, polynomial):
+            new_terms = []
+            for a in self.terms:
+                for b in other.terms:
+                    new_terms.append(a * b)
+            for a in self.terms:
+                if other.constant != Scalar.zero():
+                    new_terms.append(monomial(a.coeff * other.constant, a.terms))
             for b in other.terms:
-                new_terms.append(a * b)
-        for a in self.terms:
-            if other.constant != Scalar.zero():
-                new_terms.append(monomial(a.coeff * other.constant, a.terms))
-        for b in other.terms:
-            if self.constant != Scalar.zero():
-                new_terms.append(monomial(b.coeff * self.constant, b.terms))
-        new_constant = self.constant * other.constant
-        return polynomial(new_terms, new_constant)
+                if self.constant != Scalar.zero():
+                    new_terms.append(monomial(b.coeff * self.constant, b.terms))
+            new_constant = self.constant * other.constant
+            return polynomial(new_terms, new_constant)
+        else:
+            assert isinstance(other, Scalar)
+            new_terms = []
+            for a in self.terms:
+                if other != Scalar.zero():
+                    new_terms.append(monomial(a.coeff * other, a.terms))
+            new_constant = self.constant * other
+            return polynomial(new_terms, new_constant)
     
     def eval_i(self, x_i: Scalar, i: int):
         """  
-        evaluate valuable index i with x_i
+        evaluate variable index i with x_i
         """
         new_terms_poly = []
         new_constant = self.constant
@@ -312,6 +325,9 @@ def chi_w(w: list[Scalar]):
     mono = monomial(Scalar.one(), prod)
     return mono
 
+def chi_w_poly(w: list[Scalar]):
+    return polynomial([chi_w(w)])
+
 # for f(x) in gkr
 def chi_w_from_k(w: list[Scalar], k: int):
     prod = []
@@ -425,5 +441,17 @@ def get_ext_from_k(f: Callable[[list[Scalar]], Scalar], v: int, k: int) -> polyn
         if f(w) == Scalar.zero():
             continue
         res.mult(f(w))
+        ext_f.append(res)
+    return polynomial(ext_f)
+
+def get_multi_poly_lagrange(vals: list[Scalar], length: int) -> polynomial:
+    w_set = generate_binary(length)
+    assert(len(w_set) == len(vals))
+    ext_f = []
+    for w, val in zip(w_set, vals):
+        res = chi_w(w)
+        if val == Scalar.zero():
+            continue
+        res.mult(val)
         ext_f.append(res)
     return polynomial(ext_f)

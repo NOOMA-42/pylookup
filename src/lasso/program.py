@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from src.common_util.curve import Scalar, G1Point
-from src.common_util.poly import Polynomial
 
 # This is a simple SOS table that decompose the table 
 class SOSTable:
@@ -18,16 +17,20 @@ class SOSTable:
         self.tables = tables
         assert(len(tables) == self.alpha)
 
-    def g_func(self, r: list[Scalar]):
+    def g_func(self, r: list):
         assert(len(r) == self.alpha)
-        # the g function
-        # here we have g(r_1, ..., r_c) = 1 + r_1 + r_2 * 2**l + ... + r_c * 2**(l*(c-1))
-        # represent the table [1, 2, ..., 2**(l*c)]
-        # need to override this function
+        '''
+        the g function
+        r could be a list of Scalar or poly.Polynomial or mle_poly.polynomial
+        ret would be the same type as r_1
+        here we have g(r_1, ..., r_c) = 1 + r_1 + r_2 * 2**l + ... + r_c * 2**(l*(c-1))
+        represent the table [1, 2, ..., 2**(l*c)]
+        need to override this function
+        '''
         ret = Scalar(1)
         mul = Scalar(1)
         for i in range(self.alpha):
-            ret += r[i] * mul
+            ret = r[i] * mul + ret
             mul *= Scalar(2**self.l)
         return ret
 

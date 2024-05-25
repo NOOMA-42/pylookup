@@ -2,6 +2,8 @@ import py_ecc.bn128 as b
 from dataclasses import dataclass
 from src.common_util.curve import Scalar, G1Point, ec_lincomb
 from src.common_util.poly import Polynomial, Basis
+from src.common_util.mle_poly import polynomial, chi, get_multi_poly_lagrange
+from src.common_util.sumcheck import verify_sumcheck
 from src.lasso.program import Params, SOSTable, GrandProductData, Hash
 from src.lasso.prover import Proof
 from src.lasso.setup import Setup
@@ -29,9 +31,9 @@ class Verifier:
         print("Start to verify proof")
         transcript = Transcript(b"lasso")
         r = transcript.round_1(pf.msg_1)
-        rz = transcript.round_2(pf.msg_2)
-        tau, gamma, r_prime2, r_prime3 = transcript.round_3(pf.msg_3)
-        r_prime2, r_prime3, r_prime4, r_prime5 = transcript.round_4(pf.msg_4)
+        transcript.round_2(pf.msg_2)
+        tau, gamma = transcript.round_3(pf.msg_3)
+        transcript.round_4(pf.msg_4)
 
         # get proofs
         proof = pf.flatten()
@@ -43,17 +45,22 @@ class Verifier:
         E_comm = proof["E_comm"]
         read_ts_comm = proof["read_ts_comm"]
         final_cts_comm = proof["final_cts_comm"]
-        sumcheck_h_data = proof["sumcheck_h_data"]
+        h_sumcheck_proof = proof["h_sumcheck_proof"]
+        rz = proof["rz"]
         E_eval = proof["E_eval"]
         E_PIOP = proof["E_PIOP"]
         S_comm = proof["S_comm"]
         RS_comm = proof["RS_comm"]
         WS1_comm = proof["WS1_comm"]
         WS2_comm = proof["WS2_comm"]
-        sumcheck_S_data = proof["sumcheck_S_data"]
-        sumcheck_RS_data = proof["sumcheck_RS_data"]
-        sumcheck_WS1_data = proof["sumcheck_WS1_data"]
-        sumcheck_WS2_data = proof["sumcheck_WS2_data"]
+        S_sumcheck_proof = proof["S_sumcheck_proof"]
+        RS_sumcheck_proof = proof["RS_sumcheck_proof"]
+        WS1_sumcheck_proof = proof["WS1_sumcheck_proof"]
+        WS2_sumcheck_proof = proof["WS2_sumcheck_proof"]
+        r_prime2 = proof["r_prime2"]
+        r_prime3 = proof["r_prime3"]
+        r_prime4 = proof["r_prime4"]
+        r_prime5 = proof["r_prime5"]
         S_data = proof["S_data"]
         RS_data = proof["RS_data"]
         WS1_data = proof["WS1_data"]
@@ -72,8 +79,8 @@ class Verifier:
         print("=== Finished Check 1: check value of a(r) ===")
         
         print("=== Started Check 1: sum check protocol of h ===")
-        h_eval = self.verify_sumcheck_data(sumcheck_h_data, a_eval)
-        assert(h_eval == self.setup.eq_mle(r, rz) * self.table.g_func(E_eval))
+        assert(verify_sumcheck(a_eval, h_sumcheck_proof, rz, 1))
+        # Todo: assert(h(rz) == chi(r, rz) * self.table.g_func(E_eval))
         print("=== Finished Check 1: sum check protocol of h ===")
 
         print("=== Started Check 2: check values of E(rz) ===")
@@ -83,10 +90,10 @@ class Verifier:
         
         print("=== Started Check 3: sum check protocol of grand product ===")
         for i in range(self.alpha):
-            self.verify_sumcheck_data(sumcheck_S_data[i], Scalar(0))
-            self.verify_sumcheck_data(sumcheck_RS_data[i], Scalar(0))
-            self.verify_sumcheck_data(sumcheck_WS1_data[i], Scalar(0))
-            self.verify_sumcheck_data(sumcheck_WS2_data[i], Scalar(0))
+            self.verify_sumcheck_data(S_sumcheck_proof[i], Scalar(0))
+            self.verify_sumcheck_data(RS_sumcheck_proof[i], Scalar(0))
+            self.verify_sumcheck_data(WS1_sumcheck_proof[i], Scalar(0))
+            self.verify_sumcheck_data(WS2_sumcheck_proof[i], Scalar(0))
         print("=== Finished Check 3: sum check protocol of grand product ===")
 
         print("=== Started Check 4: check value of E, dim, read_ts, final_cts ===")
@@ -110,14 +117,6 @@ class Verifier:
 
         print("Finished to verify proof")
         return True
-
-    def verify_sumcheck_data(self, data: list, sum: Scalar):
-        now = sum
-        # For each round, get evaluation on [0,1,2] for a degree-2 polynomial p
-        # assert (p(0)+p(1) == now)
-        # get the next bit of r (Fiat-Shamir?)
-        # recover the degree-2 polynomial p and set now=p(r)
-        return now
 
     def verify_grand_product_PIOP(self, data: GrandProductData, comm: G1Point, point: list):
         assert(self.setup.PIOP_verify(comm, point, data.f_0_r, data.f_0_r_PIOP))

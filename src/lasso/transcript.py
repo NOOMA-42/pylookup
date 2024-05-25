@@ -20,7 +20,8 @@ class Message2:
 
 @dataclass
 class Message3:
-    sumcheck_h_data: list
+    sumcheck_h_data: list[list[Scalar]]
+    rz: list[Scalar]
     E_eval: list[Scalar]
     E_PIOP: list[G1Point]
 
@@ -33,10 +34,14 @@ class Message4:
 
 @dataclass
 class Message5:
-    sumcheck_S_data: list
-    sumcheck_RS_data: list
-    sumcheck_WS1_data: list
-    sumcheck_WS2_data: list
+    S_sumcheck_proof: list[list[list[Scalar]]]
+    RS_sumcheck_proof: list[list[list[Scalar]]]
+    WS1_sumcheck_proof: list[list[list[Scalar]]]
+    WS2_sumcheck_proof: list[list[list[Scalar]]]
+    r_prime2: list[list[Scalar]]
+    r_prime3: list[list[Scalar]]
+    r_prime4: list[list[Scalar]]
+    r_prime5: list[list[Scalar]]
     S_data: list[GrandProductData]
     RS_data: list[GrandProductData]
     WS1_data: list[GrandProductData]
@@ -70,8 +75,7 @@ class Transcript(CommonTranscript):
             self.append_point(bytes("E"+str(i)+"_comm"), message.E_comm[i])
             self.append_point(bytes("read_ts"+str(i)+"_comm"), message.read_ts_comm[i])
             self.append_point(bytes("final_cts"+str(i)+"_comm"), message.final_cts_comm[i])
-        self.rz = [self.get_and_append_challenge(b"rz") for _ in range(self.logm)]
-        return self.rz
+        return
     
     def round_3(self, message: Message3) -> tuple[Scalar, Scalar]:
         for i in range(self.alpha):
@@ -86,8 +90,4 @@ class Transcript(CommonTranscript):
         self.append_point(b"RS_comm", message.RS_comm)
         self.append_point(b"WS1_comm", message.WS1_comm)
         self.append_point(b"WS2_comm", message.WS2_comm)
-        self.r_prime2 = [[self.get_and_append_challenge(b"r_prime2") for _ in range(self.l)] for __ in range(self.alpha)]
-        self.r_prime3 = [[self.get_and_append_challenge(b"r_prime3") for _ in range(self.logm)] for __ in range(self.alpha)]
-        self.r_prime4 = [[self.get_and_append_challenge(b"r_prime3") for _ in range(self.logm)] for __ in range(self.alpha)]
-        self.r_prime5 = [[self.get_and_append_challenge(b"r_prime2") for _ in range(self.l)] for __ in range(self.alpha)]
-        return self.r_prime2, self.r_prime3, self.r_prime4, self.r_prime5
+        return
