@@ -1,5 +1,5 @@
 import random
-from setup import Setup
+from src.plookup.setup import Setup
 from src.plookup.program import Params
 from src.plookup.prover import Prover, Proof
 from src.plookup.verifier import Verifier
