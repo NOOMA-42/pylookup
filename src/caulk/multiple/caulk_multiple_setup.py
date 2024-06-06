@@ -1,6 +1,5 @@
-import random
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 from src.common_util.curve_optimized import Scalar, G1Point, G1, ec_mul
 from src.common_util.kzg_optimized import KZGSetup
@@ -8,7 +7,7 @@ from src.common_util.poly_optimized import Polynomial, Basis
 
 
 @dataclass
-class CaulkSingleSetup:
+class CaulkMultipleSetup:
     kzgSetup: KZGSetup
     c: list[Scalar]
     c_poly: Polynomial
@@ -24,11 +23,9 @@ class CaulkSingleSetup:
 
     @classmethod
     def example_setup(cls):
-        random.seed(0)
-
         kzgSetup = KZGSetup.manual_setup()
         c = list(map(Scalar, [1, 2, 3, 4]))
-        c_poly = Polynomial(c, Basis.LAGRANGE)
+        c_poly = Polynomial(c, Basis.LAGRANGE).ifft()
         c_commit = kzgSetup.commit_G1(c_poly)
         h = Scalar(123)
         h_1 = ec_mul(G1, h)
@@ -50,5 +47,5 @@ class CaulkSingleSetup:
 
 
 if __name__ == "__main__":
-    setup = CaulkSingleSetup.example_setup()
+    setup = CaulkMultipleSetup.example_setup()
     print(setup.roots_N)

@@ -1,5 +1,7 @@
 from enum import Enum
+
 from numpy.polynomial import polynomial as P
+
 from src.common_util.curve_optimized import Scalar
 
 
@@ -142,20 +144,21 @@ class Polynomial:
                 )
         else:
             assert isinstance(other, Scalar)
-            if (self.basis == Basis.LAGRANGE):
-                return Polynomial(
-                    [x / other for x in self.values],
-                    self.basis,
-                )
+            return Polynomial(
+                [x / other for x in self.values],
+                self.basis,
+            )
 
-            if (self.basis == Basis.MONOMIAL):
-                c1 = self.values
-                c2 = [other]
-                res = P.polydiv(c1, c2)
-                return Polynomial(
-                    res,
-                    self.basis,
-                )
+    def compose(self, other):
+        assert self.basis == Basis.MONOMIAL
+        assert other.basis == Basis.MONOMIAL
+
+        result = Polynomial([self.values[0]])
+        current = other
+        for i in range(1, len(self.values)):
+            result += Polynomial([self.values[i]]) * current
+            current *= other
+        return result
 
     def shift(self, shift: int):
         assert self.basis == Basis.LAGRANGE

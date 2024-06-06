@@ -1,6 +1,8 @@
-from py_ecc.fields.optimized_field_elements import FQ as Field
-import py_ecc.optimized_bn128 as b
+import random
 from typing import NewType
+
+import py_ecc.optimized_bn128 as b
+from py_ecc.fields.optimized_field_elements import FQ as Field
 
 PRIMITIVE_ROOT = 5
 G1Point = NewType("G1Point", tuple[b.FQ, b.FQ, b.FQ])
@@ -25,6 +27,26 @@ class Scalar(Field):
         while len(o) < group_order:
             o.append(o[-1] * o[1])
         return o
+
+    @classmethod
+    def get_random(cls):
+        value = random.randint(0, cls.field_modulus - 1)
+        return Scalar(value)
+
+    def inv(self):
+        return Scalar(pow(self.n, -1, self.field_modulus))
+
+    def __mul__(self, other):
+        from src.common_util.poly_optimized import Polynomial
+        if isinstance(other, Polynomial):
+            return other * self
+        return Scalar(super().__mul__(other))
+
+    def to_g1(self):
+        return ec_mul(G1, self)
+
+    def to_g2(self):
+        return ec_mul(G2, self)
 
 
 Base = NewType("Base", b.FQ)

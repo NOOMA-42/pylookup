@@ -46,7 +46,7 @@ class CaulkSingleProver:
         assert setup.c_poly.ifft().eval(setup.roots_N[i]) == v
 
         # sample prover randomness
-        a, s, r = Scalar(666), Scalar(777), Scalar(888)
+        a, s, r = Scalar.get_random(), Scalar.get_random(), Scalar.get_random()
 
         # pederson commitment
         cm = ec_mul(G1, v + setup.h * r)
@@ -74,7 +74,7 @@ class CaulkSingleProver:
         logN = setup.logN
         n = setup.n
         b = a * self.setup.roots_N[i]
-        r0, r1, r2, r3 = Scalar(11), Scalar(22), Scalar(33), Scalar(44)
+        r0, r1, r2, r3 = Scalar.get_random(), Scalar.get_random(), Scalar.get_random(), Scalar.get_random()
         r_poly = Polynomial([r1, r2, r3], Basis.MONOMIAL)
         z_vn = vanishing_poly(n)
         rho_polys = lagrange_polys(n)
