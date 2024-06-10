@@ -20,17 +20,16 @@ class Setup(object):
     @classmethod
     def commit(self, values: polynomial) -> G1Point:
         # Todo
-        return b.Z1
+        return b.G1
     
     @classmethod
     def multivar_eval(self, poly: polynomial, point: list[Scalar]) -> Scalar:
-        # Todo
-        return Scalar(0)
+        return poly.eval(point)
     
     @classmethod
     def PIOP_prove(self, poly: polynomial, point: list[Scalar], eval: Scalar) -> G1Point:
         # Todo
-        return b.Z1
+        return b.G1
     
     @classmethod
     def PIOP_verify(self, commitment: G1Point, point: list[Scalar], eval: Scalar, proof: G1Point) -> bool:

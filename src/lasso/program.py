@@ -50,8 +50,8 @@ class Params:
 
     def __init__(self, table: SOSTable):
         self.table = table
-        self.order = len(table)
-        self.roots = Scalar.roots_of_unity(self.order)
+        # self.order = len(table)
+        # self.roots = Scalar.roots_of_unity(self.order)
 
 @dataclass
 class GrandProductData:

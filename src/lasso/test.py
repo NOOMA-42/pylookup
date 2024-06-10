@@ -4,7 +4,6 @@ from src.lasso.program import Params, SOSTable
 from src.lasso.prover import Prover, Proof
 from src.lasso.verifier import Verifier
 
-
 # setup: public setup includes srs
 # public_table: public table
 # witness: values to lookup
@@ -96,7 +95,6 @@ def random_test():
     proof = prover_random_lookup(setup, params)
     # run verifier
     verifier(setup, params, proof)
-
 
 if __name__ == "__main__":
     simple_test()

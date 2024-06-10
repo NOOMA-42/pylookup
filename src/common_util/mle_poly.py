@@ -97,6 +97,14 @@ class polynomial:
             assert isinstance(other, Scalar)
             return polynomial(self.terms, self.constant + other)
     
+    def __sub__(self, other):
+        if isinstance(other, polynomial):
+            other = other * Scalar(-1)
+            return polynomial(self.terms + other.terms, self.constant + other.constant)
+        else:
+            assert isinstance(other, Scalar)
+            return polynomial(self.terms, self.constant - other)
+    
     def __mul__(self, other):
         if isinstance(other, polynomial):
             new_terms = []
@@ -120,6 +128,12 @@ class polynomial:
             new_constant = self.constant * other
             return polynomial(new_terms, new_constant)
     
+    def put_values(self, values: list[Scalar]):
+        """
+        set values for further use
+        """
+        self.values = values
+
     def eval_i(self, x_i: Scalar, i: int):
         """  
         evaluate variable index i with x_i
@@ -147,6 +161,12 @@ class polynomial:
                 new_terms_poly.append(new_mono)
         poly = polynomial(new_terms_poly, new_constant).apply_all()
         return poly
+    
+    def eval(self, x: list[Scalar]):
+        poly = polynomial(self.terms[:], self.constant)
+        for i, x_i in enumerate(x):
+            poly = poly.eval_i(x_i, i+1)
+        return poly.constant
 
     def is_univariate(self):
         i = 0
@@ -340,6 +360,18 @@ def chi_w_from_k(w: list[Scalar], k: int):
     mono = monomial(Scalar.one(), prod)
     return mono
 
+# Similar to chi_w, but extend to w \notin {0, 1}^n
+def eq_mle(w: list[Scalar]):
+    prod = []
+    for i, w_i in enumerate(w):
+        prod.append(term(w_i*2-1, i+1, 1-w_i))
+    
+    mono = monomial(Scalar.one(), prod)
+    return mono
+
+def eq_mle_poly(w: list[Scalar]):
+    return polynomial([eq_mle(w)])
+
 def eval_ext(f: Callable[[list[Scalar]], Scalar], r: list[Scalar]) -> Scalar:
     w = generate_binary(len(r))
     acc = Scalar.zero()
@@ -444,14 +476,16 @@ def get_ext_from_k(f: Callable[[list[Scalar]], Scalar], v: int, k: int) -> polyn
         ext_f.append(res)
     return polynomial(ext_f)
 
-def get_multi_poly_lagrange(vals: list[Scalar], length: int) -> polynomial:
+def get_multi_poly_lagrange(values: list[Scalar], length: int) -> polynomial:
     w_set = generate_binary(length)
-    assert(len(w_set) == len(vals))
+    assert(len(w_set) == len(values))
     ext_f = []
-    for w, val in zip(w_set, vals):
+    for w, val in zip(w_set, values):
         res = chi_w(w)
         if val == Scalar.zero():
             continue
         res.mult(val)
         ext_f.append(res)
-    return polynomial(ext_f)
+    poly = polynomial(ext_f)
+    poly.put_values(values)
+    return poly

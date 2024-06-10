@@ -79,21 +79,21 @@ class Verifier:
         print("=== Finished Check 1: check value of a(r) ===")
         
         print("=== Started Check 1: sum check protocol of h ===")
-        assert(verify_sumcheck(a_eval, h_sumcheck_proof, rz, 1))
+        assert(verify_sumcheck(a_eval, h_sumcheck_proof, rz, logm))
         # Todo: assert(h(rz) == chi(r, rz) * self.table.g_func(E_eval))
         print("=== Finished Check 1: sum check protocol of h ===")
 
         print("=== Started Check 2: check values of E(rz) ===")
-        for eval, comm, PIOP in range(zip(E_eval, E_comm, E_PIOP)):
+        for eval, comm, PIOP in zip(E_eval, E_comm, E_PIOP):
             assert(self.setup.PIOP_verify(comm, rz, eval, PIOP))
         print("=== Finished Check 2: check values of E(rz) ===")
         
         print("=== Started Check 3: sum check protocol of grand product ===")
         for i in range(self.alpha):
-            self.verify_sumcheck_data(S_sumcheck_proof[i], Scalar(0))
-            self.verify_sumcheck_data(RS_sumcheck_proof[i], Scalar(0))
-            self.verify_sumcheck_data(WS1_sumcheck_proof[i], Scalar(0))
-            self.verify_sumcheck_data(WS2_sumcheck_proof[i], Scalar(0))
+            verify_sumcheck(Scalar(0), S_sumcheck_proof[i], r_prime2[i], self.l)
+            verify_sumcheck(Scalar(0), RS_sumcheck_proof[i], r_prime3[i], logm)
+            verify_sumcheck(Scalar(0), WS1_sumcheck_proof[i], r_prime4[i], logm)
+            verify_sumcheck(Scalar(0), WS2_sumcheck_proof[i], r_prime5[i], self.l)
         print("=== Finished Check 3: sum check protocol of grand product ===")
 
         print("=== Started Check 4: check value of E, dim, read_ts, final_cts ===")
@@ -108,9 +108,9 @@ class Verifier:
             assert(self.setup.PIOP_verify(read_ts_comm, r_prime3, read_ts_eval, read_ts_PIOP))
             assert(self.setup.PIOP_verify(final_cts_comm, r_prime2, final_cts_eval, final_cts_PIOP))
             assert(RS_data[i].f_0_r == Hash((dim_eval[i], E_eval2[i], read_ts_eval[i]), tau, gamma))
-            identity_poly = Polynomial([Scalar(i) for i in range(2**self.l)], Basis.LAGRANGE)
+            identity_poly = get_multi_poly_lagrange([Scalar(i) for i in range(2**self.l)], self.l)
             identity_eval = self.setup.multivar_eval(identity_poly, r_prime2[i])
-            table_poly = Polynomial(map(self.table.tables[i], Scalar), Basis.LAGRANGE)
+            table_poly = get_multi_poly_lagrange(list(map(Scalar, self.table.tables[i])), self.l)
             table_eval = self.setup.multivar_eval(table_poly, r_prime2[i])
             assert(S_data[i].f_0_r == Hash((identity_eval, table_eval, final_cts_eval[i]), tau, gamma))
         print("=== Finished Check 4: check value of E, dim, read_ts, final_cts ===")

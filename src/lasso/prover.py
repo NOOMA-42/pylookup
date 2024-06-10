@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from src.common_util.curve import Scalar
-from src.common_util.mle_poly import polynomial, chi_w_poly, get_multi_poly_lagrange
+from src.common_util.mle_poly import polynomial, chi_w_poly, get_multi_poly_lagrange, generate_binary, eq_mle_poly
 from src.common_util.sumcheck import prove_sumcheck
 from src.lasso.program import Params, SOSTable, GrandProductData, log_ceil, Hash
 from src.lasso.setup import Setup
@@ -122,9 +122,8 @@ class Prover:
             values = [0 for _ in range(2**self.logm)]
             for j in range(self.m):
                 values[j] = self.indexes[j][i]
-            self.dim_poly.append(get_multi_poly_lagrange(list(map(values, Scalar)), self.logm))
+            self.dim_poly.append(get_multi_poly_lagrange(list(map(Scalar, values)), self.logm))
 
-        # Todo: use multivariate poly comm
         self.dim_comm = [self.setup.commit(poly) for poly in self.dim_poly]
         return Message1(self.a_comm, self.logm, self.dim_comm)
     
@@ -150,11 +149,10 @@ class Prover:
                 write_cts[j] = ts+1
                 final_cts[values[j]] = ts+1
 
-            # Todo: use multilinear poly
-            self.E_poly.append(get_multi_poly_lagrange(list(map(E_val, Scalar)), self.logm))
-            self.read_poly.append(get_multi_poly_lagrange(list(map(read_ts, Scalar)), self.logm))
-            self.write_poly.append(get_multi_poly_lagrange(list(map(write_cts, Scalar)), self.logm))
-            self.final_poly.append(get_multi_poly_lagrange(list(map(final_cts, Scalar)), self.l))
+            self.E_poly.append(get_multi_poly_lagrange(list(map(Scalar, E_val)), self.logm))
+            self.read_poly.append(get_multi_poly_lagrange(list(map(Scalar, read_ts)), self.logm))
+            self.write_poly.append(get_multi_poly_lagrange(list(map(Scalar, write_cts)), self.logm))
+            self.final_poly.append(get_multi_poly_lagrange(list(map(Scalar, final_cts)), self.l))
         
         self.E_comm = [self.setup.commit(poly) for poly in self.E_poly]
         self.read_comm = [self.setup.commit(poly) for poly in self.read_poly]
@@ -163,11 +161,11 @@ class Prover:
     
     def round_3(self):
         # sumcheck protocol on h(k) = eq(r, k) * g(...E_i(k))
-        h_poly = chi_w_poly(self.r) * self.table.g_func(self.E_poly)
-        self.sumcheck_h_data, self.rz = prove_sumcheck(h_poly, self.logm, 1)
+        h_poly = eq_mle_poly(self.r) * self.table.g_func(self.E_poly)
+        self.h_sumcheck_proof, self.rz = prove_sumcheck(h_poly, self.logm, 1)
         self.E_eval = [self.setup.multivar_eval(E, self.rz) for E in self.E_poly]
         self.E_PIOP = [self.setup.PIOP_prove(e_poly, self.rz, e_eval) for (e_poly, e_eval) in zip(self.E_poly, self.E_eval)]
-        return Message3(self.sumcheck_h_data, self.rz, self.E_eval, self.E_PIOP)
+        return Message3(self.h_sumcheck_proof, self.rz, self.E_eval, self.E_PIOP)
     
     def round_4(self):
         self.S_poly, self.RS_poly, self.WS1_poly, self.WS2_poly = [], [], [], []
@@ -180,10 +178,11 @@ class Prover:
             for j in range(2**self.l):
                 S.append((Scalar(j), Scalar(self.table.tables[i][j]), self.final_poly[i].values[j]))
                 WS2.append((Scalar(j), Scalar(self.table.tables[i][j]), Scalar(0)))
-            S_poly = self.grand_product_poly(S)
-            RS_poly = self.grand_product_poly(RS)
-            WS1_poly = self.grand_product_poly(WS1)
-            WS2_poly = self.grand_product_poly(WS2)
+
+            S_poly = self.grand_product_poly(S, self.l)
+            RS_poly = self.grand_product_poly(RS, self.logm)
+            WS1_poly = self.grand_product_poly(WS1, self.logm)
+            WS2_poly = self.grand_product_poly(WS2, self.l)
             self.S_poly.append(S_poly)
             self.RS_poly.append(RS_poly)
             self.WS1_poly.append(WS1_poly)
@@ -202,22 +201,14 @@ class Prover:
         self.E_eval2, self.dim_eval, self.read_eval, self.final_eval = [], [], [], []
         self.E_PIOP2, self.dim_PIOP, self.read_PIOP, self.final_PIOP = [], [], [], []
         for i in range(self.alpha):
-            '''
-            For RS and WS1:
-            run sumcheck protocol on g(k) = eq(r,k) * (fi(1,k)-fi(k,0)fi(k,1))
-            will get g(r') where len(r') = logm
-            Warning! fi(1,k)-fi(k,0)fi(k,1) is not linear
-            For S and WS2:
-            run sumcheck protocol with len(r') = l
-            ''' 
             self.handle_grand_product_sumcheck(self.S_sumcheck_proof, self.r_prime2, self.S_poly[i], self.l)
             self.handle_grand_product_sumcheck(self.RS_sumcheck_proof, self.r_prime3, self.RS_poly[i], self.logm)
             self.handle_grand_product_sumcheck(self.WS1_sumcheck_proof, self.r_prime4, self.WS1_poly[i], self.logm)
             self.handle_grand_product_sumcheck(self.WS2_sumcheck_proof, self.r_prime5, self.WS2_poly[i], self.l)
-            self.S_data.append(GrandProductData(self.S_poly[i], self.r_prime2[i]))
-            self.RS_data.append(GrandProductData(self.RS_poly[i], self.r_prime3[i]))
-            self.WS1_data.append(GrandProductData(self.WS1_poly[i], self.r_prime4[i]))
-            self.WS2_data.append(GrandProductData(self.WS2_poly[i], self.r_prime5[i]))
+            self.S_data.append(self.generateGrandProductData(self.S_poly[i], self.r_prime2[i]))
+            self.RS_data.append(self.generateGrandProductData(self.RS_poly[i], self.r_prime3[i]))
+            self.WS1_data.append(self.generateGrandProductData(self.WS1_poly[i], self.r_prime4[i]))
+            self.WS2_data.append(self.generateGrandProductData(self.WS2_poly[i], self.r_prime5[i]))
             self.E_eval2.append(self.setup.multivar_eval(self.E_poly[i], self.r_prime3[i]))
             self.dim_eval.append(self.setup.multivar_eval(self.dim_poly[i//self.k], self.r_prime3[i]))
             self.read_eval.append(self.setup.multivar_eval(self.read_poly[i], self.r_prime3[i]))
@@ -236,18 +227,17 @@ class Prover:
     
     def grand_product_poly(self, multiset: list[tuple[Scalar, Scalar, Scalar]], length: int):
         # see https://eprint.iacr.org/2020/1275.pdf, section 5
-        f = [Hash(s, self.gamma, self.tau) for s in multiset] # f(0,x) = v(x)
+        f = [Hash(s, self.tau, self.gamma) for s in multiset] # f(0,x) = v(x)
         for i in range(len(f)-1):
             f.append(f[2*i]*f[2*i+1]) # f(1,x) = f(x,0) * f(x,1)
         f.append(Scalar(0))
-        poly_f = polynomial(f, length)
+        poly_f = get_multi_poly_lagrange(f, length+1)
         return poly_f
     
     def grand_product_sumcheck(self, poly: polynomial, length: int):
         # run sumcheck protocol on g(k) = eq(r,k) * (f(1,k)-f(k,0)*f(k,1))
         diff_poly = poly.eval_i(Scalar(1), 1) - poly.eval_i(Scalar(0), length+1) * poly.eval_i(Scalar(1), length+1)
-        # Todo: index issue of poly.eval_i(Scalar(1), 1)
-        g_poly = chi_w_poly(self.r) * diff_poly
+        g_poly = eq_mle_poly(self.r) * diff_poly
         return prove_sumcheck(g_poly, length, 1)
     
     def handle_grand_product_sumcheck(self, data_list, r_list, poly: polynomial, length: int):
@@ -260,7 +250,7 @@ class Prover:
         f_1_r = self.setup.multivar_eval(f, [Scalar(1)]+r)
         f_r_0 = self.setup.multivar_eval(f, r+[Scalar(0)])
         f_r_1 = self.setup.multivar_eval(f, r+[Scalar(1)])
-        product = f.values[2**len(r)-2]
+        product = f.values[2**(len(r)+1)-2]
         f_0_r_PIOP = self.setup.PIOP_prove(f, r, f_0_r)
         f_1_r_PIOP = self.setup.PIOP_prove(f, r, f_1_r)
         f_r_0_PIOP = self.setup.PIOP_prove(f, r, f_r_0)
