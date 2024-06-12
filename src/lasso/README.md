@@ -1,6 +1,6 @@
 # Lasso
 
-A Python implementation of [Lasso](https://eprint.iacr.org/2023/1216.pdf) with our implementation of multilinear polynomial commitment.
+A Python implementation of [Lasso](https://eprint.iacr.org/2023/1216.pdf) with [multivariate kzg](https://eprint.iacr.org/2011/587.pdf) polynomial commitment scheme.
 
 ## Getting started
 
@@ -24,4 +24,4 @@ Run command from the root of the repository:
 
 `poetry run python ./src/lasso/test.py`
 
-This will take you through the workflow of setup, proof generation, and verification
+This will take you through the workflow of setup, proof generation, and verification.

@@ -20,12 +20,12 @@ class SOSTable:
     def g_func(self, r: list):
         assert(len(r) == self.alpha)
         '''
-        the g function
-        r could be a list of Scalar or poly.Polynomial or mle_poly.polynomial
-        ret would be the same type as r_1
-        here we have g(r_1, ..., r_c) = 1 + r_1 + r_2 * 2**l + ... + r_c * 2**(l*(c-1))
-        represent the table [1, 2, ..., 2**(l*c)]
-        need to override this function
+        The g function.
+        r could be a list of Scalar or poly.Polynomial or mle_poly.polynomial.
+        ret would be the same type as r_1.
+        Here we have g(r_1, ..., r_c) = 1 + r_1 + r_2 * 2**l + ... + r_c * 2**(l*(c-1))
+            that represent the table [1, 2, ..., 2**(l*c)].
+        Need to override this function.
         '''
         ret = Scalar(1)
         mul = Scalar(1)
@@ -35,7 +35,13 @@ class SOSTable:
         return ret
 
     def get_index(self, value: int):
-        # need to override this function
+        '''
+        Return the index of each subtable for any element in the table.
+        With the SOS structure, we should be able to get the indexes 
+            without iterating through the whole table.
+        Here we return the indexes for the element in the table [1, 2, ..., 2**(l*c)]
+        Need to override this function
+        '''
         val = value - 1
         index = []
         for i in range(self.c):
@@ -45,26 +51,17 @@ class SOSTable:
 
 class Params:
     table: SOSTable
-    order: int
-    roots: list[Scalar]
 
     def __init__(self, table: SOSTable):
         self.table = table
-        # self.order = len(table)
-        # self.roots = Scalar.roots_of_unity(self.order)
 
 @dataclass
 class GrandProductData:
-    f_0_r: Scalar
-    f_1_r: Scalar
-    f_r_0: Scalar
-    f_r_1: Scalar
-    product: Scalar
-    f_0_r_PIOP: G1Point
-    f_1_r_PIOP: G1Point
-    f_r_0_PIOP: G1Point
-    f_r_1_PIOP: G1Point
-    product_PIOP: G1Point
+    # See https://eprint.iacr.org/2020/1275.pdf, Section 5
+    base: Scalar     # f(0, r)
+    product: Scalar  # f(1, .., 1, 0)
+    base_proof: G1Point
+    product_proof: G1Point
 
 def log_ceil(n: int):
     # return smallest int that >= log(n)

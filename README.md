@@ -1,11 +1,11 @@
 # pylookup
 
 Implement lookup argument
-1. [WIP] plookup
+1. [WIP] plookup: https://eprint.iacr.org/2020/315.pdf
 2. [WIP] Caulk+
 3. [WIP] baloo
 4. [WIP] CQ: https://eprint.iacr.org/2022/1763.pdf
-5. [WIP] lasso
+5. [WIP] lasso: https://eprint.iacr.org/2023/1216.pdf
 6. [WIP] LogUp+GKR
 
 ## Test

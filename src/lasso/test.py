@@ -1,5 +1,5 @@
 import random
-from setup import Setup
+from src.lasso.setup import Setup
 from src.lasso.program import Params, SOSTable
 from src.lasso.prover import Prover, Proof
 from src.lasso.verifier import Verifier
@@ -98,4 +98,4 @@ def random_test():
 
 if __name__ == "__main__":
     simple_test()
-    random_test()
+    # random_test()

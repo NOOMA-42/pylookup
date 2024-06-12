@@ -24,4 +24,4 @@ Run command from the root of the repository:
 
 `poetry run python ./src/plookup/test.py`
 
-This will take you through the workflow of setup, proof generation, and verification
+This will take you through the workflow of setup, proof generation, and verification.

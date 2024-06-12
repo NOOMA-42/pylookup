@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from src.common_util.curve import Scalar
-from src.common_util.mle_poly import polynomial, chi_w_poly, get_multi_poly_lagrange, generate_binary, eq_mle_poly
+from src.common_util.mle_poly import polynomial, get_multi_poly_lagrange, eq_mle_poly
 from src.common_util.sumcheck import prove_sumcheck
 from src.lasso.program import Params, SOSTable, GrandProductData, log_ceil, Hash
 from src.lasso.setup import Setup
@@ -22,7 +22,7 @@ class Proof:
         proof["dim_comm"] = self.msg_1.dim_comm
         # msg_2
         proof["a_eval"] = self.msg_2.a_eval
-        proof["a_PIOP"] = self.msg_2.a_PIOP
+        proof["a_eval_proof"] = self.msg_2.a_eval_proof
         proof["E_comm"] = self.msg_2.E_comm
         proof["read_ts_comm"] = self.msg_2.read_ts_comm
         proof["final_cts_comm"] = self.msg_2.final_cts_comm
@@ -30,7 +30,7 @@ class Proof:
         proof["h_sumcheck_proof"] = self.msg_3.h_sumcheck_proof
         proof["rz"] = self.msg_3.rz
         proof["E_eval"] = self.msg_3.E_eval
-        proof["E_PIOP"] = self.msg_3.E_PIOP
+        proof["E_eval_proof"] = self.msg_3.E_eval_proof
         # msg_4
         proof["S_comm"] = self.msg_4.S_comm
         proof["RS_comm"] = self.msg_4.RS_comm
@@ -53,10 +53,10 @@ class Proof:
         proof["dim_eval"] = self.msg_5.dim_eval
         proof["read_ts_eval"] = self.msg_5.read_ts_eval
         proof["final_cts_eval"] = self.msg_5.final_cts_eval
-        proof["E_PIOP2"] = self.msg_5.E_PIOP2
-        proof["dim_PIOP"] = self.msg_5.dim_PIOP
-        proof["read_ts_PIOP"] = self.msg_5.read_ts_PIOP
-        proof["final_cts_PIOP"] = self.msg_5.final_cts_PIOP
+        proof["E_eval2_proof"] = self.msg_5.E_eval2_proof
+        proof["dim_eval_proof"] = self.msg_5.dim_eval_proof
+        proof["read_ts_eval_proof"] = self.msg_5.read_ts_eval_proof
+        proof["final_cts_eval_proof"] = self.msg_5.final_cts_eval_proof
         return proof
 
 @dataclass
@@ -87,8 +87,6 @@ class Prover:
         # Round 2
         msg_2 = self.round_2()
         
-        # If we don't need randomness in sumcheck protocol, we can combine round 2 and 3
-        # but I think we need it for security?
         transcript.round_2(msg_2)
         # Round 3
         msg_3 = self.round_3()
@@ -128,8 +126,8 @@ class Prover:
         return Message1(self.a_comm, self.logm, self.dim_comm)
     
     def round_2(self):
-        self.a_eval = self.setup.multivar_eval(self.a_poly, self.r)
-        self.a_PIOP = self.setup.PIOP_prove(self.a, self.r, self.a_eval)
+        self.a_eval = self.a_poly.eval(self.r)
+        self.a_eval_proof = self.setup.prove(self.a, self.r, self.a_eval)
 
         self.E_poly, self.read_poly, self.write_poly, self.final_poly = [], [], [], []
         for i in range(self.alpha):
@@ -157,15 +155,15 @@ class Prover:
         self.E_comm = [self.setup.commit(poly) for poly in self.E_poly]
         self.read_comm = [self.setup.commit(poly) for poly in self.read_poly]
         self.final_comm = [self.setup.commit(poly) for poly in self.final_poly]
-        return Message2(self.a_eval, self.a_PIOP, self.E_comm, self.read_comm, self.final_comm)
+        return Message2(self.a_eval, self.a_eval_proof, self.E_comm, self.read_comm, self.final_comm)
     
     def round_3(self):
         # sumcheck protocol on h(k) = eq(r, k) * g(...E_i(k))
         h_poly = eq_mle_poly(self.r) * self.table.g_func(self.E_poly)
         self.h_sumcheck_proof, self.rz = prove_sumcheck(h_poly, self.logm, 1)
-        self.E_eval = [self.setup.multivar_eval(E, self.rz) for E in self.E_poly]
-        self.E_PIOP = [self.setup.PIOP_prove(e_poly, self.rz, e_eval) for (e_poly, e_eval) in zip(self.E_poly, self.E_eval)]
-        return Message3(self.h_sumcheck_proof, self.rz, self.E_eval, self.E_PIOP)
+        self.E_eval = [E.eval(self.rz) for E in self.E_poly]
+        self.E_eval_proof = [self.setup.prove(e_poly, self.rz, e_eval) for (e_poly, e_eval) in zip(self.E_poly, self.E_eval)]
+        return Message3(self.h_sumcheck_proof, self.rz, self.E_eval, self.E_eval_proof)
     
     def round_4(self):
         self.S_poly, self.RS_poly, self.WS1_poly, self.WS2_poly = [], [], [], []
@@ -199,31 +197,30 @@ class Prover:
         self.r_prime2, self.r_prime3, self.r_prime4, self.r_prime5 = [], [], [], []
         self.S_data, self.RS_data, self.WS1_data, self.WS2_data = [], [], [], []
         self.E_eval2, self.dim_eval, self.read_eval, self.final_eval = [], [], [], []
-        self.E_PIOP2, self.dim_PIOP, self.read_PIOP, self.final_PIOP = [], [], [], []
+        self.E_eval2_proof, self.dim_eval_proof, self.read_eval_proof, self.final_eval_proof = [], [], [], []
         for i in range(self.alpha):
             self.handle_grand_product_sumcheck(self.S_sumcheck_proof, self.r_prime2, self.S_poly[i], self.l)
             self.handle_grand_product_sumcheck(self.RS_sumcheck_proof, self.r_prime3, self.RS_poly[i], self.logm)
             self.handle_grand_product_sumcheck(self.WS1_sumcheck_proof, self.r_prime4, self.WS1_poly[i], self.logm)
             self.handle_grand_product_sumcheck(self.WS2_sumcheck_proof, self.r_prime5, self.WS2_poly[i], self.l)
-            self.S_data.append(self.generateGrandProductData(self.S_poly[i], self.r_prime2[i]))
-            self.RS_data.append(self.generateGrandProductData(self.RS_poly[i], self.r_prime3[i]))
-            self.WS1_data.append(self.generateGrandProductData(self.WS1_poly[i], self.r_prime4[i]))
-            self.WS2_data.append(self.generateGrandProductData(self.WS2_poly[i], self.r_prime5[i]))
-            self.E_eval2.append(self.setup.multivar_eval(self.E_poly[i], self.r_prime3[i]))
-            self.dim_eval.append(self.setup.multivar_eval(self.dim_poly[i//self.k], self.r_prime3[i]))
-            self.read_eval.append(self.setup.multivar_eval(self.read_poly[i], self.r_prime3[i]))
-            self.final_eval.append(self.setup.multivar_eval(self.final_poly[i], self.r_prime2[i]))
-            self.E_PIOP2.append(self.setup.PIOP_prove(self.E_poly[i], self.r_prime3[i], self.E_eval2[i]))
-            self.dim_PIOP.append(self.setup.PIOP_prove(self.dim_poly[i//self.k], self.r_prime3[i], self.dim_eval[i]))
-            self.read_PIOP.append(self.setup.PIOP_prove(self.read_poly[i], self.r_prime3[i], self.read_eval[i]))
-            self.final_PIOP.append(self.setup.PIOP_prove(self.final_poly[i], self.r_prime2[i], self.final_eval[i]))
+            self.S_data.append(self.generate_grand_product_data(self.S_poly[i], self.r_prime2[i]))
+            self.RS_data.append(self.generate_grand_product_data(self.RS_poly[i], self.r_prime3[i]))
+            self.WS1_data.append(self.generate_grand_product_data(self.WS1_poly[i], self.r_prime4[i]))
+            self.WS2_data.append(self.generate_grand_product_data(self.WS2_poly[i], self.r_prime5[i]))
+            self.E_eval2.append(self.E_poly[i].eval(self.r_prime3[i]))
+            self.dim_eval.append(self.dim_poly[i//self.k].eval(self.r_prime3[i]))
+            self.read_eval.append(self.read_poly[i].eval(self.r_prime3[i]))
+            self.final_eval.append(self.final_poly[i].eval(self.r_prime2[i]))
+            self.E_eval2_proof.append(self.setup.prove(self.E_poly[i], self.r_prime3[i], self.E_eval2[i]))
+            self.dim_eval_proof.append(self.setup.prove(self.dim_poly[i//self.k], self.r_prime3[i], self.dim_eval[i]))
+            self.read_eval_proof.append(self.setup.prove(self.read_poly[i], self.r_prime3[i], self.read_eval[i]))
+            self.final_eval_proof.append(self.setup.prove(self.final_poly[i], self.r_prime2[i], self.final_eval[i]))
 
-        return Message5(self.S_sumcheck_proof, self.RS_sumcheck_proof,
-                        self.WS1_sumcheck_proof, self.WS2_sumcheck_proof,
+        return Message5(self.S_sumcheck_proof, self.RS_sumcheck_proof, self.WS1_sumcheck_proof, self.WS2_sumcheck_proof,
                         self.r_prime2, self.r_prime3, self.r_prime4, self.r_prime5,
                         self.S_data, self.RS_data, self.WS1_data, self.WS2_data,
                         self.E_eval2, self.dim_eval, self.read_eval, self.final_eval,
-                        self.E_PIOP2, self.dim_PIOP, self.read_PIOP, self.final_PIOP)
+                        self.E_eval2_proof, self.dim_eval_proof, self.read_eval_proof, self.final_eval_proof)
     
     def grand_product_poly(self, multiset: list[tuple[Scalar, Scalar, Scalar]], length: int):
         # see https://eprint.iacr.org/2020/1275.pdf, section 5
@@ -245,16 +242,10 @@ class Prover:
         data_list.append(data)
         r_list.append(r)
 
-    def generateGrandProductData(self, f: polynomial, r: list[Scalar]):
-        f_0_r = self.setup.multivar_eval(f, [Scalar(0)]+r)
-        f_1_r = self.setup.multivar_eval(f, [Scalar(1)]+r)
-        f_r_0 = self.setup.multivar_eval(f, r+[Scalar(0)])
-        f_r_1 = self.setup.multivar_eval(f, r+[Scalar(1)])
-        product = f.values[2**(len(r)+1)-2]
-        f_0_r_PIOP = self.setup.PIOP_prove(f, r, f_0_r)
-        f_1_r_PIOP = self.setup.PIOP_prove(f, r, f_1_r)
-        f_r_0_PIOP = self.setup.PIOP_prove(f, r, f_r_0)
-        f_r_1_PIOP = self.setup.PIOP_prove(f, r, f_r_1)
-        product_PIOP = self.setup.PIOP_prove(f, r, product)
-        return GrandProductData(f_0_r, f_1_r, f_r_0, f_r_1, product,
-                f_0_r_PIOP, f_1_r_PIOP, f_r_0_PIOP, f_r_1_PIOP, product_PIOP)
+    def generate_grand_product_data(self, f: polynomial, r: list[Scalar]):
+        base = f.eval([Scalar(0)]+r)
+        point = [Scalar(1)]*len(r)+[Scalar(0)]
+        product = f.eval(point)
+        base_proof = self.setup.prove(f, [Scalar(0)]+r, base)
+        product_proof = self.setup.prove(f, point, product)
+        return GrandProductData(base, product, base_proof, product_proof)

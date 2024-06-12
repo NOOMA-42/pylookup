@@ -1,6 +1,6 @@
 import py_ecc.bn128 as b
 from dataclasses import dataclass
-from src.common_util.curve import Scalar, G1Point
+from src.common_util.curve import Scalar, G1Point, ec_lincomb
 from src.common_util.mle_poly import polynomial
 
 @dataclass
@@ -23,15 +23,11 @@ class Setup(object):
         return b.G1
     
     @classmethod
-    def multivar_eval(self, poly: polynomial, point: list[Scalar]) -> Scalar:
-        return poly.eval(point)
-    
-    @classmethod
-    def PIOP_prove(self, poly: polynomial, point: list[Scalar], eval: Scalar) -> G1Point:
+    def prove(self, poly: polynomial, point: list[Scalar], eval: Scalar) -> G1Point:
         # Todo
         return b.G1
     
     @classmethod
-    def PIOP_verify(self, commitment: G1Point, point: list[Scalar], eval: Scalar, proof: G1Point) -> bool:
+    def verify(self, commitment: G1Point, point: list[Scalar], eval: Scalar, proof: G1Point) -> bool:
         # Todo
         return True
