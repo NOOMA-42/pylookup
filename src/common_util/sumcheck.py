@@ -5,6 +5,7 @@ from src.common_util.curve import Scalar
 from src.common_util.util import *
 
 def prove_sumcheck(g: polynomial, v: int, offset=0) -> tuple[list[list[Scalar]], list[Scalar]]:
+    # TODO: think about removing offset
     """
     params:
     g: the polynomial to prove
@@ -75,7 +76,24 @@ def prove_sumcheck(g: polynomial, v: int, offset=0) -> tuple[list[list[Scalar]],
     return proof, r
 
 # TODO accommodate +1 -1 case 
-def verify_sumcheck(claim: Scalar, proof: list[list[Scalar]], r: list[Scalar], v: int, g: polynomial) -> bool:
+def verify_sumcheck(claim: Scalar, proof: list[list[Scalar]], r: list[Scalar], v: int, config="DEFAULT", g=None, p_q_plus_one_dict=None) -> bool:
+    """  
+    params:
+    v: number of variables
+    config: "DEFAULT" or "FRACTIONAL_GKR"
+    
+    With DEFAULT config:
+    g: 
+        optional
+        the polynomial to prove, verifier evaluate herself
+    
+    With FRACTIONAL_GKR config:
+    p_q_plus_one_dict: 
+        optional
+        dict[str, Scalar]
+        given as univariate polynomial, q'(x), p'(x)
+
+    """
     bn = len(proof)
     # Univariate case
     if(v == 1 and (eval_univariate(proof[0], Scalar.zero()) + eval_univariate(proof[0], Scalar.one())) == claim):
@@ -91,13 +109,28 @@ def verify_sumcheck(claim: Scalar, proof: list[list[Scalar]], r: list[Scalar], v
         if Scalar(sum(list(map(lambda x : int(x), proof[i])))) != r[i]:
             return False
         expected = eval_univariate(proof[i], r[i])
+    
     # Final check: g_v(r_v) ?= g(r1, r2, ..., rv)
-    g_result = polynomial(g.terms[:], g.constant)
-    g_result_value = Scalar(1)
-    for j, x in enumerate(r, 1):
-        if j == len(r):
-            g_result_value = g_result.eval_univariate(x)
-        g_result: polynomial = g_result.eval_i(x, j)
-    if g_result_value == eval_univariate(proof[bn - 1], r[bn - 1]):
-        return True
+    if config == "DEFAULT":
+        if g is None:
+            raise ValueError("g must be provided in default sumcheck")
+        g_result = polynomial(g.terms[:], g.constant)
+        g_result_value = Scalar(1)
+        for j, x in enumerate(r, 1):
+            if j == len(r):
+                g_result_value = g_result.eval_univariate(x)
+            g_result: polynomial = g_result.eval_i(x, j)
+        if g_result_value == eval_univariate(proof[bn - 1], r[bn - 1]):
+            return True
+    elif config == "FRACTIONAL_GKR":
+        if p_q_plus_one_dict is None:
+            raise ValueError("p_q_plus_one_dict must be provided in fractional gkr sumcheck")
+        if p_q_plus_one_dict["p_k_plus_one_one"] is None or p_q_plus_one_dict["p_k_plus_one_zero"] is None or p_q_plus_one_dict["q_k_plus_one_one"] is None or p_q_plus_one_dict["q_k_plus_one_zero"] is None:
+            raise ValueError("Invalid p_q_plus_one_dict")
+        # TODO make this random linear combined
+        f_r_k: Scalar = (p_q_plus_one_dict["p_k_plus_one_one"] * p_q_plus_one_dict["q_k_plus_one_zero"] + p_q_plus_one_dict["p_k_plus_one_zero"] * p_q_plus_one_dict["q_k_plus_one_one"]) + p_q_plus_one_dict["q_k_plus_one_one"] * p_q_plus_one_dict["q_k_plus_one_zero"]
+        if claim == f_r_k:
+            return True
+    else:
+        raise ValueError("Invalid config")
     return False
