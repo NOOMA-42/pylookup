@@ -110,7 +110,7 @@ class Prover:
         for i in range(self.m):
             self.a[i] = Scalar(witness[i])
         self.a_poly = get_multi_poly_lagrange(self.a, self.logm)
-        self.a_comm = self.setup.commit(self.a_poly)
+        self.a_comm = self.setup.commit_g1(self.a_poly, self.logm)
         self.indexes = []
         for w in witness:
             self.indexes.append(self.table.get_index(w))
@@ -122,12 +122,12 @@ class Prover:
                 values[j] = self.indexes[j][i]
             self.dim_poly.append(get_multi_poly_lagrange(list(map(Scalar, values)), self.logm))
 
-        self.dim_comm = [self.setup.commit(poly) for poly in self.dim_poly]
+        self.dim_comm = [self.setup.commit_g1(poly, self.logm) for poly in self.dim_poly]
         return Message1(self.a_comm, self.logm, self.dim_comm)
     
     def round_2(self):
         self.a_eval = self.a_poly.eval(self.r)
-        self.a_eval_proof = self.setup.prove(self.a, self.r, self.a_eval)
+        self.a_eval_proof = self.setup.prove(self.a_poly, self.r, self.a_eval)
 
         self.E_poly, self.read_poly, self.write_poly, self.final_poly = [], [], [], []
         for i in range(self.alpha):
@@ -152,9 +152,9 @@ class Prover:
             self.write_poly.append(get_multi_poly_lagrange(list(map(Scalar, write_cts)), self.logm))
             self.final_poly.append(get_multi_poly_lagrange(list(map(Scalar, final_cts)), self.l))
         
-        self.E_comm = [self.setup.commit(poly) for poly in self.E_poly]
-        self.read_comm = [self.setup.commit(poly) for poly in self.read_poly]
-        self.final_comm = [self.setup.commit(poly) for poly in self.final_poly]
+        self.E_comm = [self.setup.commit_g1(poly, self.logm) for poly in self.E_poly]
+        self.read_comm = [self.setup.commit_g1(poly, self.logm) for poly in self.read_poly]
+        self.final_comm = [self.setup.commit_g1(poly, self.l) for poly in self.final_poly]
         return Message2(self.a_eval, self.a_eval_proof, self.E_comm, self.read_comm, self.final_comm)
     
     def round_3(self):
@@ -185,10 +185,10 @@ class Prover:
             self.RS_poly.append(RS_poly)
             self.WS1_poly.append(WS1_poly)
             self.WS2_poly.append(WS2_poly)
-            self.S_comm.append(self.setup.commit(S_poly))
-            self.RS_comm.append(self.setup.commit(RS_poly))
-            self.WS1_comm.append(self.setup.commit(WS1_poly))
-            self.WS2_comm.append(self.setup.commit(WS2_poly))
+            self.S_comm.append(self.setup.commit_g1(S_poly, self.l+1))
+            self.RS_comm.append(self.setup.commit_g1(RS_poly, self.logm+1))
+            self.WS1_comm.append(self.setup.commit_g1(WS1_poly, self.logm+1))
+            self.WS2_comm.append(self.setup.commit_g1(WS2_poly, self.l+1))
 
         return Message4(self.S_comm, self.RS_comm, self.WS1_comm, self.WS2_comm)
     

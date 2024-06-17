@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from src.common_util.curve import Scalar, G1Point
 from src.common_util.transcript import CommonTranscript
 from src.lasso.program import GrandProductData
+from src.lasso.setup import mvKzgProof
 
 @dataclass
 class Message1:
@@ -12,7 +13,7 @@ class Message1:
 @dataclass
 class Message2:
     a_eval: Scalar
-    a_eval_proof: G1Point
+    a_eval_proof:mvKzgProof
     E_comm: list[G1Point]
     read_ts_comm: list[G1Point]
     final_cts_comm: list[G1Point]
@@ -22,7 +23,7 @@ class Message3:
     h_sumcheck_proof: list[list[Scalar]]
     rz: list[Scalar]
     E_eval: list[Scalar]
-    E_eval_proof: list[G1Point]
+    E_eval_proof: list[mvKzgProof]
 
 @dataclass
 class Message4:
@@ -49,10 +50,10 @@ class Message5:
     dim_eval: list[Scalar]
     read_ts_eval: list[Scalar]
     final_cts_eval: list[Scalar]
-    E_eval2_proof: list[G1Point]
-    dim_eval_proof: list[G1Point]
-    read_ts_eval_proof: list[G1Point]
-    final_cts_eval_proof: list[G1Point]
+    E_eval2_proof: list[mvKzgProof]
+    dim_eval_proof: list[mvKzgProof]
+    read_ts_eval_proof: list[mvKzgProof]
+    final_cts_eval_proof: list[mvKzgProof]
 
 class Transcript(CommonTranscript):
     def round_1(self, message: Message1) -> list[Scalar]:
@@ -66,7 +67,7 @@ class Transcript(CommonTranscript):
     
     def round_2(self, message: Message2):
         self.append_scalar(b"a_eval", message.a_eval)
-        self.append_point(b"a_eval_proof", message.a_eval_proof)
+        self.append_point(b"a_eval_proof", message.a_eval_proof.w[0])
         self.alpha = len(message.E_comm)
         for i in range(self.alpha):
             self.append_point(b"E_comm", message.E_comm[i])
@@ -76,7 +77,7 @@ class Transcript(CommonTranscript):
     def round_3(self, message: Message3) -> tuple[Scalar, Scalar]:
         for i in range(self.alpha):
             self.append_scalar(b"E_eval", message.E_eval[i])
-            self.append_point(b"E_eval_proof", message.E_eval_proof[i])
+            # self.append_point(b"E_eval_proof", message.E_eval_proof[i].w[0])
         self.tau = self.get_and_append_challenge(b"tau")
         self.gamma = self.get_and_append_challenge(b"gamma")
         return self.tau, self.gamma

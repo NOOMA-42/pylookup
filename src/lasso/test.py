@@ -61,11 +61,8 @@ def simple_test():
     subtable_bits = 2
     table = SimpleSOSTable(total_bits, subtable_bits)
 
-    group_order_N = 2**subtable_bits
-    # number of powers of tau
-    powers = group_order_N * 2
     # do setup
-    setup = Setup(powers, tau)
+    setup = Setup(subtable_bits, 3)
     # set public params
     params = Params(table)
     # run prover

@@ -84,6 +84,12 @@ class monomial:
             for t in self.terms[1:]:
                 res *= t
             return res
+        
+    def get_multi_expansion(self, v: int) -> 'MultivariateExpansion':
+        mexp = const2mexp(self.coeff, v)
+        for term in self.terms:
+            mexp *= term
+        return mexp
 
 class polynomial:
     def __init__(self, terms: list[monomial], c=Scalar.zero()) -> None:
@@ -168,6 +174,42 @@ class polynomial:
             poly = poly.eval_i(x_i, i+1)
         return poly.constant
 
+    def quotient_single_term(self, value: Scalar, i: int):
+        # return the quotient of f/(x_i-value)
+        new_terms_poly = []
+        new_constant = Scalar(0)
+        for mono in self.terms:
+            terms = mono.terms.copy()
+            coeff = mono.coeff
+            while True:
+                new_terms = []
+                this_coeff = coeff
+                next_coeff = coeff
+                has_x_i = False
+                for term in terms:
+                    if has_x_i:
+                        new_terms.append(term)
+                    else:
+                        if term.x_i == i:
+                            has_x_i = True
+                            this_coeff *= term.coeff
+                            next_coeff *= term.eval(value)
+                        else:
+                            new_terms.append(term)
+                if not has_x_i:
+                    break
+                if len(new_terms) == 0:
+                    new_constant += this_coeff
+                    break
+                else:
+                    new_mono = monomial(this_coeff, new_terms)
+                    new_terms_poly.append(new_mono)
+                    terms = new_terms
+                    coeff = next_coeff
+                
+        poly = polynomial(new_terms_poly, new_constant).apply_all()
+        return poly
+
     def is_univariate(self):
         i = 0
         for term in self.terms:
@@ -231,6 +273,12 @@ class polynomial:
         for t in self.terms:
             res += t.get_expansion()
         return res
+    
+    def get_multi_expansion(self, v: int) -> 'MultivariateExpansion':
+        mexp = const2mexp(self.constant, v)
+        for mono in self.terms:
+            mexp += mono.get_multi_expansion(v)
+        return mexp
 
     def __str__(self):
         terms_str = " + ".join([str(term) for term in self.terms])
@@ -489,3 +537,4 @@ def get_multi_poly_lagrange(values: list[Scalar], length: int) -> polynomial:
     poly = polynomial(ext_f)
     poly.put_values(values)
     return poly
+def get_single_term_poly(term: term) -> polynomial:    mono = monomial(Scalar(1), [term])    return polynomial([mono])def const2mexp(value: Scalar, v: int) -> MultivariateExpansion:    term = [Scalar(0) for _ in range(v+1)]    term[0] = value    return MultivariateExpansion([term], v)
