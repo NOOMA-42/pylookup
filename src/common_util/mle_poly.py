@@ -332,15 +332,17 @@ class MultivariateExpansion:
         if isinstance(other, term):
             res = []
             for t in self.terms:
-                new_t1 = t[:]
-                i = other.x_i
-                new_t1[i] += 1
-                new_t1[0] *= other.coeff
-                res.append(new_t1)
+                if other.coeff != Scalar(0):
+                    new_t1 = t[:]
+                    i = other.x_i
+                    new_t1[i] += 1
+                    new_t1[0] *= other.coeff
+                    res.append(new_t1)
 
-                new_t2 = t[:]
-                new_t2[0] *= other.const
-                res.append(new_t2)
+                if other.const != Scalar(0):
+                    new_t2 = t[:]
+                    new_t2[0] *= other.const
+                    res.append(new_t2)
             return MultivariateExpansion(res, self.v)
     
     def __add__(self, other):
@@ -537,4 +539,12 @@ def get_multi_poly_lagrange(values: list[Scalar], length: int) -> polynomial:
     poly = polynomial(ext_f)
     poly.put_values(values)
     return poly
-def get_single_term_poly(term: term) -> polynomial:    mono = monomial(Scalar(1), [term])    return polynomial([mono])def const2mexp(value: Scalar, v: int) -> MultivariateExpansion:    term = [Scalar(0) for _ in range(v+1)]    term[0] = value    return MultivariateExpansion([term], v)
+
+def get_single_term_poly(term: term) -> polynomial:
+    mono = monomial(Scalar(1), [term])
+    return polynomial([mono])
+
+def const2mexp(value: Scalar, v: int) -> MultivariateExpansion:
+    term = [Scalar(0) for _ in range(v+1)]
+    term[0] = value
+    return MultivariateExpansion([term], v)

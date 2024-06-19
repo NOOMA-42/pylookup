@@ -22,7 +22,7 @@ class Setup(object):
     def generate_srs(self, length: int, max_degree: int):
         self.max_degree = max_degree
         print("Start to generate structured reference string")
-        print("modulus =", Scalar.field_modulus)
+        # random number, normally comes from MPC(Multi-Party Computation)
         t_list = [random.randint(1, Scalar.field_modulus-1) for _ in range(length)]
         powers_of_x = [b.G1]
         for t in t_list:
@@ -60,9 +60,8 @@ class Setup(object):
                 now = 1
                 for i in range(1, len(term)):
                     index += now*term[i]
-                    now *= self.max_degree
+                    now *= (self.max_degree+1)
                 comb_list.append((self.powers_of_x[index.n], term[0]))
-        # print("comb_list: ", comb_list)
         return ec_lincomb(comb_list)
     
     @classmethod
@@ -79,15 +78,9 @@ class Setup(object):
         for i in range(n):
             q = p.quotient_single_term(point[i], i+1)
             g = self.commit_g1(q, n)
-            # if g != None:
-            #     w.append(g)
-            # else:
-            #     print(f"g = None, poly = {poly}, i = {i}, q = {q}")
-            #     exit()
+            # Note: g would be None when q is zero polynomial
             w.append(g)
             p = p.eval_i(point[i], i+1)
-        assert(len(p.terms) == 0)
-        assert(p.constant == eval)
         return mvKzgProof(w)
     
     @classmethod

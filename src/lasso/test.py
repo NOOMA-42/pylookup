@@ -31,7 +31,7 @@ def prover_random_lookup(setup: Setup, params: Params):
     # values to lookup
     witness = []
     for _ in range(16):
-        witness.append(random.randint(1, 2**20))
+        witness.append(random.randint(1, 2**16))
 
     proof = prover(setup, params, witness)
     return proof
@@ -54,15 +54,13 @@ class SimpleSOSTable(SOSTable):
         
 
 def simple_test():
-    # random number, normally comes from MPC(Multi-Party Computation)
-    tau = 100
     # public table
     total_bits = 4
     subtable_bits = 2
     table = SimpleSOSTable(total_bits, subtable_bits)
 
     # do setup
-    setup = Setup(subtable_bits, 3)
+    setup = Setup(subtable_bits+1, 3)
     # set public params
     params = Params(table)
     # run prover
@@ -71,21 +69,13 @@ def simple_test():
     verifier(setup, params, proof)
 
 def random_test():
-    # random number, normally comes from MPC(Multi-Party Computation)
-    tau = 100
-
     # public table
-    # Todo: some complicated table where k > 1
-    # table = [1...256]
-    table = []
-    for i in range(1, 2**20+1):
-        table.append(i)
-    
-    group_order_N = len(table)
-    # number of powers of tau
-    powers = group_order_N * 3
+    total_bits = 16
+    subtable_bits = 4
+    table = SimpleSOSTable(total_bits, subtable_bits)
+
     # do setup
-    setup = Setup(powers, tau)
+    setup = Setup(subtable_bits+1, 3)
     # set public params
     params = Params(table)
     # run prover
@@ -95,4 +85,4 @@ def random_test():
 
 if __name__ == "__main__":
     simple_test()
-    # random_test()
+    random_test()
