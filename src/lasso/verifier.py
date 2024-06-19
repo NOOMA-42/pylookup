@@ -1,7 +1,6 @@
-import py_ecc.bn128 as b
 from dataclasses import dataclass
 from src.common_util.curve import Scalar, G1Point
-from src.common_util.mle_poly import get_multi_poly_lagrange
+from src.common_util.mle_poly import chi, eval_univariate, get_multi_poly_lagrange
 from src.common_util.sumcheck import verify_sumcheck
 from src.lasso.program import Params, SOSTable, GrandProductData, Hash
 from src.lasso.prover import Proof
@@ -79,7 +78,7 @@ class Verifier:
         
         print("=== Started Check 2: sum check protocol of h ===")
         assert(verify_sumcheck(a_eval, h_sumcheck_proof, rz, logm))
-        # Todo: assert(h(rz) == chi(r, rz) * self.table.g_func(E_eval))
+        assert(eval_univariate(h_sumcheck_proof[-1], rz[-1]) == chi(r, rz) * self.table.g_func(E_eval))
         print("=== Finished Check 2: sum check protocol of h ===")
 
         print("=== Started Check 3: check values of E(rz) ===")
@@ -95,7 +94,7 @@ class Verifier:
             verify_sumcheck(Scalar(0), WS2_sumcheck_proof[i], r_prime5[i], self.l)
         print("=== Finished Check 4: sum check protocol of grand product ===")
 
-        print("=== Started Check 5: check value of E, dim, read_ts, final_cts ===")
+        print("=== Started Check 5: check values of E, dim, read_ts, final_cts ===")
         for i in range(self.alpha):
             self.verify_grand_product(S_data[i], S_comm[i], r_prime2[i])
             self.verify_grand_product(RS_data[i], RS_comm[i], r_prime3[i])
@@ -112,7 +111,7 @@ class Verifier:
             table_poly = get_multi_poly_lagrange(list(map(Scalar, self.table.tables[i])), self.l)
             table_eval = table_poly.eval(r_prime2[i])
             assert(S_data[i].base == Hash((identity_eval, table_eval, final_cts_eval[i]), tau, gamma))
-        print("=== Finished Check 5: check value of E, dim, read_ts, final_cts ===")
+        print("=== Finished Check 5: check values of E, dim, read_ts, final_cts ===")
 
         print("Finished to verify proof")
         return True

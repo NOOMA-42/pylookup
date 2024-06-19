@@ -48,7 +48,6 @@ class Setup(object):
         print("Finished to generate structured reference string")
         self.powers_of_x = powers_of_x
         self.powers_of_x2 = powers_of_x2
-        return True
 
     @classmethod
     def commit_g1(self, poly: polynomial, n: int) -> G1Point:
