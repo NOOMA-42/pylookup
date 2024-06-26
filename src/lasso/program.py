@@ -58,9 +58,15 @@ class Params:
 @dataclass
 class GrandProductData:
     # See https://eprint.iacr.org/2020/1275.pdf, Section 5
-    base: Scalar     # f(0, r)
+    f_0_r: Scalar    # f(0, r)
+    f_1_r: Scalar    # f(1, r)
+    f_r_0: Scalar    # f(r, 0)
+    f_r_1: Scalar    # f(r, 1)
     product: Scalar  # f(1, .., 1, 0)
-    base_proof: G1Point
+    f_0_r_proof: G1Point
+    f_1_r_proof: G1Point
+    f_r_0_proof: G1Point
+    f_r_1_proof: G1Point
     product_proof: G1Point
 
 def log_ceil(n: int):

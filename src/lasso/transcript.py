@@ -8,7 +8,7 @@ from src.lasso.setup import mvKzgProof
 class Message1:
     a_comm: G1Point
     logm: int
-    dim_comm: list[G1Point] # multivariate polynomial commitment of f
+    dim_comm: list[G1Point]
 
 @dataclass
 class Message2:
@@ -56,6 +56,11 @@ class Message5:
     final_cts_eval_proof: list[mvKzgProof]
 
 class Transcript(CommonTranscript):
+    def append_proof(self, label: bytes, item: mvKzgProof):
+        for point in item.w:
+            if point != None:
+                self.append_point(label, point)
+
     def round_1(self, message: Message1) -> list[Scalar]:
         self.append_point(b"a_comm", message.a_comm)
         self.c = len(message.dim_comm)
@@ -67,7 +72,7 @@ class Transcript(CommonTranscript):
     
     def round_2(self, message: Message2):
         self.append_scalar(b"a_eval", message.a_eval)
-        self.append_point(b"a_eval_proof", message.a_eval_proof.w[0])
+        self.append_proof(b"a_eval_proof", message.a_eval_proof)
         self.alpha = len(message.E_comm)
         for i in range(self.alpha):
             self.append_point(b"E_comm", message.E_comm[i])
@@ -77,7 +82,7 @@ class Transcript(CommonTranscript):
     def round_3(self, message: Message3) -> tuple[Scalar, Scalar]:
         for i in range(self.alpha):
             self.append_scalar(b"E_eval", message.E_eval[i])
-            # self.append_point(b"E_eval_proof", message.E_eval_proof[i].w[0])
+            self.append_proof(b"E_eval_proof", message.E_eval_proof[i])
         self.tau = self.get_and_append_challenge(b"tau")
         self.gamma = self.get_and_append_challenge(b"gamma")
         return self.tau, self.gamma

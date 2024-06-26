@@ -102,15 +102,7 @@ class polynomial:
         else:
             assert isinstance(other, Scalar)
             return polynomial(self.terms, self.constant + other)
-    
-    def __sub__(self, other):
-        if isinstance(other, polynomial):
-            other = other * Scalar(-1)
-            return polynomial(self.terms + other.terms, self.constant + other.constant)
-        else:
-            assert isinstance(other, Scalar)
-            return polynomial(self.terms, self.constant - other)
-    
+
     def __mul__(self, other):
         if isinstance(other, polynomial):
             new_terms = []
@@ -133,12 +125,6 @@ class polynomial:
                     new_terms.append(monomial(a.coeff * other, a.terms))
             new_constant = self.constant * other
             return polynomial(new_terms, new_constant)
-    
-    def put_values(self, values: list[Scalar]):
-        """
-        set values for further use
-        """
-        self.values = values
 
     def eval_i(self, x_i: Scalar, i: int):
         """  
@@ -167,46 +153,23 @@ class polynomial:
                 new_terms_poly.append(new_mono)
         poly = polynomial(new_terms_poly, new_constant).apply_all()
         return poly
-    
+
     def eval(self, x: list[Scalar]):
         poly = polynomial(self.terms[:], self.constant)
         for i, x_i in enumerate(x):
             poly = poly.eval_i(x_i, i+1)
         return poly.constant
 
-    def quotient_single_term(self, value: Scalar, i: int):
-        # return the quotient of f/(x_i-value)
+    def shift(self, idx: int):
         new_terms_poly = []
-        new_constant = Scalar(0)
+        new_constant = self.constant
         for mono in self.terms:
-            terms = mono.terms.copy()
-            coeff = mono.coeff
-            while True:
-                new_terms = []
-                this_coeff = coeff
-                next_coeff = coeff
-                has_x_i = False
-                for term in terms:
-                    if has_x_i:
-                        new_terms.append(term)
-                    else:
-                        if term.x_i == i:
-                            has_x_i = True
-                            this_coeff *= term.coeff
-                            next_coeff *= term.eval(value)
-                        else:
-                            new_terms.append(term)
-                if not has_x_i:
-                    break
-                if len(new_terms) == 0:
-                    new_constant += this_coeff
-                    break
-                else:
-                    new_mono = monomial(this_coeff, new_terms)
-                    new_terms_poly.append(new_mono)
-                    terms = new_terms
-                    coeff = next_coeff
-                
+            new_terms = []
+            new_coeff = mono.coeff
+            for t in mono.terms:
+                new_terms.append(term(t.coeff, t.x_i + idx, t.const))
+            new_mono = monomial(new_coeff, new_terms)
+            new_terms_poly.append(new_mono)
         poly = polynomial(new_terms_poly, new_constant).apply_all()
         return poly
 
@@ -280,6 +243,44 @@ class polynomial:
             mexp += mono.get_multi_expansion(v)
         return mexp
 
+    def quotient_single_term(self, value: Scalar, i: int):
+        '''
+        return the quotient of f/(x_i-value)
+        '''
+        new_terms_poly = []
+        new_constant = Scalar(0)
+        for mono in self.terms:
+            terms = mono.terms.copy()
+            coeff = mono.coeff
+            while True:
+                new_terms = []
+                this_coeff = coeff
+                next_coeff = coeff
+                has_x_i = False
+                for term in terms:
+                    if has_x_i:
+                        new_terms.append(term)
+                    else:
+                        if term.x_i == i:
+                            has_x_i = True
+                            this_coeff *= term.coeff
+                            next_coeff *= term.eval(value)
+                        else:
+                            new_terms.append(term)
+                if not has_x_i:
+                    break
+                if len(new_terms) == 0:
+                    new_constant += this_coeff
+                    break
+                else:
+                    new_mono = monomial(this_coeff, new_terms)
+                    new_terms_poly.append(new_mono)
+                    terms = new_terms
+                    coeff = next_coeff
+                
+        poly = polynomial(new_terms_poly, new_constant).apply_all()
+        return poly
+
     def __str__(self):
         terms_str = " + ".join([str(term) for term in self.terms])
         return f"{terms_str} + {self.constant}"
@@ -332,17 +333,15 @@ class MultivariateExpansion:
         if isinstance(other, term):
             res = []
             for t in self.terms:
-                if other.coeff != Scalar(0):
-                    new_t1 = t[:]
-                    i = other.x_i
-                    new_t1[i] += 1
-                    new_t1[0] *= other.coeff
-                    res.append(new_t1)
+                new_t1 = t[:]
+                i = other.x_i
+                new_t1[i] += 1
+                new_t1[0] *= other.coeff
+                res.append(new_t1)
 
-                if other.const != Scalar(0):
-                    new_t2 = t[:]
-                    new_t2[0] *= other.const
-                    res.append(new_t2)
+                new_t2 = t[:]
+                new_t2[0] *= other.const
+                res.append(new_t2)
             return MultivariateExpansion(res, self.v)
     
     def __add__(self, other):
@@ -394,9 +393,6 @@ def chi_w(w: list[Scalar]):
     
     mono = monomial(Scalar.one(), prod)
     return mono
-
-def chi_w_poly(w: list[Scalar]):
-    return polynomial([chi_w(w)])
 
 # for f(x) in gkr
 def chi_w_from_k(w: list[Scalar], k: int):
@@ -527,6 +523,10 @@ def get_ext_from_k(f: Callable[[list[Scalar]], Scalar], v: int, k: int) -> polyn
     return polynomial(ext_f)
 
 def get_multi_poly_lagrange(values: list[Scalar], length: int) -> polynomial:
+    '''
+    get length-variate polynomial with multilinear lagrange basis
+    f = \sum_{w \in {0,1}^n} values[w] * chi_w(w)
+    '''
     w_set = generate_binary(length)
     assert(len(w_set) == len(values))
     ext_f = []
@@ -537,7 +537,6 @@ def get_multi_poly_lagrange(values: list[Scalar], length: int) -> polynomial:
         res.mult(val)
         ext_f.append(res)
     poly = polynomial(ext_f)
-    poly.put_values(values)
     return poly
 
 def get_single_term_poly(term: term) -> polynomial:
