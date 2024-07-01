@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from src.common_util.curve import Scalar, G1Point
 from src.common_util.mle_poly import chi, get_multi_poly_lagrange
-from src.common_util.sumcheck import verify_sumcheck, verify_sumcheck_with_eval
-from src.lasso.program import Params, SOSTable, GrandProductData, Hash
+from src.common_util.sumcheck import verify_sumcheck_with_eval
+from src.lasso.program import Params, SOSTable, GrandProductData, hash_tuple
 from src.lasso.prover import Proof
 from src.lasso.setup import Setup
 from src.lasso.transcript import Transcript
@@ -47,22 +47,22 @@ class Verifier:
         rz = proof["rz"]
         E_eval = proof["E_eval"]
         E_eval_proof = proof["E_eval_proof"]
+        S0_comm = proof["S0_comm"]
         S_comm = proof["S_comm"]
         RS_comm = proof["RS_comm"]
-        WS1_comm = proof["WS1_comm"]
-        WS2_comm = proof["WS2_comm"]
+        WS_comm = proof["WS_comm"]
+        S0_sumcheck_proof = proof["S0_sumcheck_proof"]
         S_sumcheck_proof = proof["S_sumcheck_proof"]
         RS_sumcheck_proof = proof["RS_sumcheck_proof"]
-        WS1_sumcheck_proof = proof["WS1_sumcheck_proof"]
-        WS2_sumcheck_proof = proof["WS2_sumcheck_proof"]
+        WS_sumcheck_proof = proof["WS_sumcheck_proof"]
+        r_prime = proof["r_prime"]
         r_prime2 = proof["r_prime2"]
         r_prime3 = proof["r_prime3"]
         r_prime4 = proof["r_prime4"]
-        r_prime5 = proof["r_prime5"]
+        S0_data = proof["S0_data"]
         S_data = proof["S_data"]
         RS_data = proof["RS_data"]
-        WS1_data = proof["WS1_data"]
-        WS2_data = proof["WS2_data"]
+        WS_data = proof["WS_data"]
         E_eval2 = proof["E_eval2"]
         dim_eval = proof["dim_eval"]
         read_ts_eval = proof["read_ts_eval"]
@@ -88,11 +88,11 @@ class Verifier:
         
         print("=== Started Check 4: sum check protocol of grand product ===")
         for i in range(self.alpha):
+            self.verify_grand_product(Scalar(0), S0_comm[i], S0_data[i], S0_sumcheck_proof[i], r_prime[i])
             self.verify_grand_product(Scalar(0), S_comm[i], S_data[i], S_sumcheck_proof[i], r_prime2[i])
             self.verify_grand_product(Scalar(0), RS_comm[i], RS_data[i], RS_sumcheck_proof[i], r_prime3[i])
-            self.verify_grand_product(Scalar(0), WS1_comm[i], WS1_data[i], WS1_sumcheck_proof[i], r_prime4[i])
-            self.verify_grand_product(Scalar(0), WS2_comm[i], WS2_data[i], WS2_sumcheck_proof[i], r_prime5[i])
-            assert(S_data[i].product * RS_data[i].product == WS1_data[i].product * WS2_data[i].product)
+            self.verify_grand_product(Scalar(0), WS_comm[i], WS_data[i], WS_sumcheck_proof[i], r_prime4[i])
+            assert(S0_data[i].product * WS_data[i].product == S_data[i].product * RS_data[i].product)
         print("=== Finished Check 4: sum check protocol of grand product ===")
 
         print("=== Started Check 5: check values of E, dim, read_ts, final_cts ===")
@@ -101,12 +101,12 @@ class Verifier:
             assert(self.setup.verify(dim_comm[i//self.k], r_prime3[i], dim_eval[i], dim_eval_proof[i]))
             assert(self.setup.verify(read_ts_comm[i], r_prime3[i], read_ts_eval[i], read_ts_eval_proof[i]))
             assert(self.setup.verify(final_cts_comm[i], r_prime2[i], final_cts_eval[i], final_cts_eval_proof[i]))
-            assert(RS_data[i].f_0_r == Hash((dim_eval[i], E_eval2[i], read_ts_eval[i]), tau, gamma))
+            assert(RS_data[i].f_0_r == hash_tuple((dim_eval[i], E_eval2[i], read_ts_eval[i]), tau, gamma))
             identity_poly = get_multi_poly_lagrange([Scalar(i) for i in range(2**self.l)], self.l)
             identity_eval = identity_poly.eval(r_prime2[i])
             table_poly = get_multi_poly_lagrange(list(map(Scalar, self.table.tables[i])), self.l)
             table_eval = table_poly.eval(r_prime2[i])
-            assert(S_data[i].f_0_r == Hash((identity_eval, table_eval, final_cts_eval[i]), tau, gamma))
+            assert(S_data[i].f_0_r == hash_tuple((identity_eval, table_eval, final_cts_eval[i]), tau, gamma))
         print("=== Finished Check 5: check values of E, dim, read_ts, final_cts ===")
 
         print("Finished to verify proof")

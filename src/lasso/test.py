@@ -60,7 +60,7 @@ def simple_test():
     table = SimpleSOSTable(total_bits, subtable_bits)
 
     # do setup
-    setup = Setup(subtable_bits+1, 3)
+    setup = Setup(subtable_bits+1, 1)
     # set public params
     params = Params(table)
     # run prover

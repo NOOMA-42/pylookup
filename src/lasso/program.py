@@ -73,5 +73,5 @@ def log_ceil(n: int):
     # return smallest int that >= log(n)
     return len(bin(n-1))-2
 
-def Hash(element: tuple[Scalar, Scalar, Scalar], tau: Scalar, gamma: Scalar) -> Scalar:
+def hash_tuple(element: tuple[Scalar, Scalar, Scalar], tau: Scalar, gamma: Scalar) -> Scalar:
     return element[0]*gamma*gamma + element[1]*gamma + element[2] - tau

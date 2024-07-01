@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from src.common_util.curve import Scalar
 from src.common_util.mle_poly import polynomial, get_multi_poly_lagrange, eq_mle_poly
 from src.common_util.sumcheck import prove_sumcheck
-from src.lasso.program import Params, SOSTable, GrandProductData, log_ceil, Hash
+from src.lasso.program import Params, SOSTable, GrandProductData, log_ceil, hash_tuple
 from src.lasso.setup import Setup
 from src.lasso.transcript import Transcript, Message1, Message2, Message3, Message4, Message5
 
@@ -32,23 +32,23 @@ class Proof:
         proof["E_eval"] = self.msg_3.E_eval
         proof["E_eval_proof"] = self.msg_3.E_eval_proof
         # msg_4
+        proof["S0_comm"] = self.msg_4.S0_comm
         proof["S_comm"] = self.msg_4.S_comm
         proof["RS_comm"] = self.msg_4.RS_comm
-        proof["WS1_comm"] = self.msg_4.WS1_comm
-        proof["WS2_comm"] = self.msg_4.WS2_comm
+        proof["WS_comm"] = self.msg_4.WS_comm
         # msg_5
+        proof["S0_sumcheck_proof"] = self.msg_5.S0_sumcheck_proof
         proof["S_sumcheck_proof"] = self.msg_5.S_sumcheck_proof
         proof["RS_sumcheck_proof"] = self.msg_5.RS_sumcheck_proof
-        proof["WS1_sumcheck_proof"] = self.msg_5.WS1_sumcheck_proof
-        proof["WS2_sumcheck_proof"] = self.msg_5.WS2_sumcheck_proof
+        proof["WS_sumcheck_proof"] = self.msg_5.WS_sumcheck_proof
+        proof["r_prime"] = self.msg_5.r_prime
         proof["r_prime2"] = self.msg_5.r_prime2
         proof["r_prime3"] = self.msg_5.r_prime3
         proof["r_prime4"] = self.msg_5.r_prime4
-        proof["r_prime5"] = self.msg_5.r_prime5
+        proof["S0_data"] = self.msg_5.S0_data
         proof["S_data"] = self.msg_5.S_data
         proof["RS_data"] = self.msg_5.RS_data
-        proof["WS1_data"] = self.msg_5.WS1_data
-        proof["WS2_data"] = self.msg_5.WS2_data
+        proof["WS_data"] = self.msg_5.WS_data
         proof["E_eval2"] = self.msg_5.E_eval2
         proof["dim_eval"] = self.msg_5.dim_eval
         proof["read_ts_eval"] = self.msg_5.read_ts_eval
@@ -134,18 +134,16 @@ class Prover:
             # Offline memory checking, or "Memory in the head"
             # See Spartan(https://eprint.iacr.org/2019/550.pdf), Section 7.2.1
             E_val = [0 for _ in range(2**self.logm)]
-            values = [0 for _ in range(2**self.logm)]
             read_ts = [0 for _ in range(2**self.logm)]
             write_cts = [0 for _ in range(2**self.logm)]
             final_cts = [0 for _ in range(2**self.l)]
-            ts = 0
             for j in range(self.m):
-                values[j] = self.indexes[j][i//self.k]
-                E_val[j] = self.table.tables[i][values[j]]
-                ts = final_cts[values[j]]
+                index = self.indexes[j][i//self.k]
+                E_val[j] = self.table.tables[i][index]
+                ts = final_cts[index]
                 read_ts[j] = ts
                 write_cts[j] = ts+1
-                final_cts[values[j]] = ts+1
+                final_cts[index] = ts+1
 
             self.append_poly_and_values(self.E_poly, self.E_values, E_val, self.logm)
             self.append_poly_and_values(self.read_poly, self.read_values, read_ts, self.logm)
@@ -167,55 +165,55 @@ class Prover:
         return Message3(self.h_sumcheck_proof, self.rz, self.E_eval, self.E_eval_proof)
     
     def round_4(self):
-        self.S_poly, self.RS_poly, self.WS1_poly, self.WS2_poly = [], [], [], []
-        self.S_comm, self.RS_comm, self.WS1_comm, self.WS2_comm = [], [], [], []
+        self.S0_poly, self.S_poly, self.RS_poly, self.WS_poly = [], [], [], []
+        self.S0_comm, self.S_comm, self.RS_comm, self.WS_comm = [], [], [], []
         for i in range(self.alpha):
-            S, RS, WS1, WS2 = [], [], [], []
+            S0, S, RS, WS = [], [], [], []
+            for j in range(2**self.l):
+                S0.append((Scalar(j), Scalar(self.table.tables[i][j]), Scalar(0)))
+                S.append((Scalar(j), Scalar(self.table.tables[i][j]), self.final_values[i][j]))
             for j in range(2**self.logm):
                 RS.append((self.dim_values[i][j], self.E_values[i][j], self.read_values[i][j]))
-                WS1.append((self.dim_values[i][j], self.E_values[i][j], self.write_values[i][j]))
-            for j in range(2**self.l):
-                S.append((Scalar(j), Scalar(self.table.tables[i][j]), self.final_values[i][j]))
-                WS2.append((Scalar(j), Scalar(self.table.tables[i][j]), Scalar(0)))
+                WS.append((self.dim_values[i][j], self.E_values[i][j], self.write_values[i][j]))
 
+            S0_poly = self.grand_product_poly(S0, self.l)
             S_poly = self.grand_product_poly(S, self.l)
             RS_poly = self.grand_product_poly(RS, self.logm)
-            WS1_poly = self.grand_product_poly(WS1, self.logm)
-            WS2_poly = self.grand_product_poly(WS2, self.l)
+            WS_poly = self.grand_product_poly(WS, self.logm)
+            self.S0_poly.append(S0_poly)
             self.S_poly.append(S_poly)
             self.RS_poly.append(RS_poly)
-            self.WS1_poly.append(WS1_poly)
-            self.WS2_poly.append(WS2_poly)
+            self.WS_poly.append(WS_poly)
+            self.S0_comm.append(self.setup.commit_g1(S0_poly, self.l+1))
             self.S_comm.append(self.setup.commit_g1(S_poly, self.l+1))
             self.RS_comm.append(self.setup.commit_g1(RS_poly, self.logm+1))
-            self.WS1_comm.append(self.setup.commit_g1(WS1_poly, self.logm+1))
-            self.WS2_comm.append(self.setup.commit_g1(WS2_poly, self.l+1))
+            self.WS_comm.append(self.setup.commit_g1(WS_poly, self.logm+1))
 
-        return Message4(self.S_comm, self.RS_comm, self.WS1_comm, self.WS2_comm)
+        return Message4(self.S0_comm, self.S_comm, self.RS_comm, self.WS_comm)
     
     def round_5(self):
-        self.S_sumcheck_proof, self.RS_sumcheck_proof, self.WS1_sumcheck_proof, self.WS2_sumcheck_proof = [], [], [], []
-        self.r_prime2, self.r_prime3, self.r_prime4, self.r_prime5 = [], [], [], []
-        self.S_data, self.RS_data, self.WS1_data, self.WS2_data = [], [], [], []
+        self.S0_sumcheck_proof, self.S_sumcheck_proof, self.RS_sumcheck_proof, self.WS_sumcheck_proof = [], [], [], []
+        self.r_prime, self.r_prime2, self.r_prime3, self.r_prime4 = [], [], [], []
+        self.S0_data, self.S_data, self.RS_data, self.WS_data,  = [], [], [], []
         self.E_eval2, self.dim_eval, self.read_eval, self.final_eval = [], [], [], []
         self.E_eval2_proof, self.dim_eval_proof, self.read_eval_proof, self.final_eval_proof = [], [], [], []
         for i in range(self.alpha):
+            self.handle_grand_product_sumcheck(self.S0_sumcheck_proof, self.r_prime, self.S0_poly[i], self.l)
             self.handle_grand_product_sumcheck(self.S_sumcheck_proof, self.r_prime2, self.S_poly[i], self.l)
             self.handle_grand_product_sumcheck(self.RS_sumcheck_proof, self.r_prime3, self.RS_poly[i], self.logm)
-            self.handle_grand_product_sumcheck(self.WS1_sumcheck_proof, self.r_prime4, self.WS1_poly[i], self.logm)
-            self.handle_grand_product_sumcheck(self.WS2_sumcheck_proof, self.r_prime5, self.WS2_poly[i], self.l)
+            self.handle_grand_product_sumcheck(self.WS_sumcheck_proof, self.r_prime4, self.WS_poly[i], self.logm)
+            self.S0_data.append(self.generate_grand_product_data(self.S0_poly[i], self.r_prime[i]))
             self.S_data.append(self.generate_grand_product_data(self.S_poly[i], self.r_prime2[i]))
             self.RS_data.append(self.generate_grand_product_data(self.RS_poly[i], self.r_prime3[i]))
-            self.WS1_data.append(self.generate_grand_product_data(self.WS1_poly[i], self.r_prime4[i]))
-            self.WS2_data.append(self.generate_grand_product_data(self.WS2_poly[i], self.r_prime5[i]))
+            self.WS_data.append(self.generate_grand_product_data(self.WS_poly[i], self.r_prime4[i]))
             self.append_eval_and_proof(self.E_eval2, self.E_eval2_proof, self.E_poly[i], self.r_prime3[i])
             self.append_eval_and_proof(self.dim_eval, self.dim_eval_proof, self.dim_poly[i//self.k], self.r_prime3[i])
             self.append_eval_and_proof(self.read_eval, self.read_eval_proof, self.read_poly[i], self.r_prime3[i])
             self.append_eval_and_proof(self.final_eval, self.final_eval_proof, self.final_poly[i], self.r_prime2[i])
 
-        return Message5(self.S_sumcheck_proof, self.RS_sumcheck_proof, self.WS1_sumcheck_proof, self.WS2_sumcheck_proof,
-                        self.r_prime2, self.r_prime3, self.r_prime4, self.r_prime5,
-                        self.S_data, self.RS_data, self.WS1_data, self.WS2_data,
+        return Message5(self.S0_sumcheck_proof, self.S_sumcheck_proof, self.RS_sumcheck_proof, self.WS_sumcheck_proof,
+                        self.r_prime, self.r_prime2, self.r_prime3, self.r_prime4,
+                        self.S0_data, self.S_data, self.RS_data, self.WS_data,
                         self.E_eval2, self.dim_eval, self.read_eval, self.final_eval,
                         self.E_eval2_proof, self.dim_eval_proof, self.read_eval_proof, self.final_eval_proof)
 
@@ -231,7 +229,7 @@ class Prover:
     
     def grand_product_poly(self, multiset: list[tuple[Scalar, Scalar, Scalar]], length: int):
         # see https://eprint.iacr.org/2020/1275.pdf, section 5
-        f = [Hash(s, self.tau, self.gamma) for s in multiset] # f(0,x) = v(x)
+        f = [hash_tuple(s, self.tau, self.gamma) for s in multiset] # f(0,x) = v(x)
         for i in range(len(f)-1):
             f.append(f[2*i]*f[2*i+1]) # f(1,x) = f(x,0) * f(x,1)
         f.append(Scalar(0))
