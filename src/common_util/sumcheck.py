@@ -58,7 +58,7 @@ def prove_sumcheck(g: polynomial, v: int, start: int):
 
     return proof, r
 
-def verify_sumcheck(claim: Scalar, proof: list[list[Scalar]], r, v: int):
+def verify_sumcheck(claim: Scalar, proof: list[list[Scalar]], r: list[Scalar], v: int):
     bn = len(proof)
     if(v == 1 and (eval_univariate(proof[0], Scalar.zero()) + eval_univariate(proof[0], Scalar.one())) == claim):
         return True
@@ -74,3 +74,19 @@ def verify_sumcheck(claim: Scalar, proof: list[list[Scalar]], r, v: int):
         expected = eval_univariate(proof[i], r[i])
 
     return True
+
+def verify_sumcheck_with_eval(claim: Scalar, proof: list[list[Scalar]], r: list[Scalar], v: int):
+    # verify sumcheck and return g(r)
+    bn = len(proof)
+    expected = claim
+    for i in range(bn):
+        q_zero = eval_univariate(proof[i], Scalar.zero())
+        q_one = eval_univariate(proof[i], Scalar.one())
+
+        if q_zero + q_one != expected:
+            return False, expected
+        if Scalar(sum(list(map(lambda x : int(x), proof[i])))) != r[i]:
+            return False, expected
+        expected = eval_univariate(proof[i], r[i])
+
+    return True, expected
